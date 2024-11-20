@@ -218,6 +218,22 @@ bool ChainBase::waitForData(uint8_t cmd, uint8_t id, uint32_t timeout) {
   }
   return false;
 }
+
+size_t ChainBase::getEnumPleaseNum(void) {
+  size_t temp = enumPlease;
+  enumPlease = 0;
+  return temp;
+}
+void getKeyBuffer(uint16_t *outBuffer, size_t *length) {
+  *length = keyBufferSize; // 返回当前keyBuffer的有效数据长度
+
+  // 复制keyBuffer的内容到outBuffer
+  memcpy(outBuffer, keyBuffer, keyBufferSize * sizeof(uint16_t));
+
+  // 清空keyBuffer
+  memset(keyBuffer, 0, KEY_BUFFER_SIZE); // 清空keyBuffer数组
+  keyBufferSize = 0;                            // 重置keyBufferSize
+}
 chain_status_t ChainBase::getBootloaderVersion(uint8_t id,
                                                uint8_t *bootloaderVersion,
                                                unsigned long timeout) {

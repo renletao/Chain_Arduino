@@ -75,7 +75,8 @@ public:
   bool processPacket(uint8_t cmd, uint8_t id);
   bool processIncomingPacket(void);
   bool checkPacket(const uint8_t *buffer, uint16_t size);
-
+  size_t getEnumPleaseNum(void);
+  void getKeyBuffer(uint16_t* outBuffer, size_t *length);
   // 判断是否有设备连接
   bool isDeviceConnected(unsigned long timeout = 100);
 
