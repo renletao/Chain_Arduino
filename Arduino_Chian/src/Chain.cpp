@@ -127,6 +127,25 @@ bool ChainBase::processPacketData(uint8_t cmd, uint8_t id) {
         // 更新缓冲区大小
         size_t remainingSize = receiveBufferSize - packetSize;
         receiveBufferSize = remainingSize;
+        uint8_t packetId = packetData[4];
+        uint8_t packetCmd = packetData[5];
+        uint8_t packetData6 = packetData[6];
+        if (packetId == id && packetCmd == cmd) {
+          memcpy(cmdReturnBuffer, packetData, packetSize);
+          cmdReturnBufferSize = packetSize;
+          packetFound = true; // 标记找到符合条件的数据包
+        } else if (packetCmd == CHAIN_ENUM_PLEASE &&
+                   checkCRC(reinterpret_cast<const uint8_t *>(cmdReturnBuffer),
+                            cmdReturnBufferSize)) {
+          enumPlease++; // 计数器增加
+
+        } else if (packetCmd == 0x40 && packetData6 == 0x11 &&
+                   checkCRC(reinterpret_cast<const uint8_t *>(cmdReturnBuffer),
+                            cmdReturnBufferSize)) {
+          if (keyBufferSize < KEY_BUFFER_SIZE) {
+            keyBuffer[keyBufferSize] = packetId;
+          }
+        }
 
         // 如果缓冲区还有未处理的数据，继续处理
         if (remainingSize > 0) {
@@ -149,11 +168,12 @@ bool ChainBase::processPacketData(uint8_t cmd, uint8_t id) {
   // 清除缓冲区和大小
   memset(receiveBuffer, 0, sizeof(receiveBuffer)); // 清空缓冲区
   receiveBufferSize = 0;                           // 重置缓冲区大小
+  return packetFound;
 }
 bool ChainBase::processPacket(uint8_t cmd, uint8_t id) {
   return processPacketData(cmd, id);
 }
-bool ChainBase::processIncomingPacket(void) { processPacketData(0, 0); }
+bool ChainBase::processIncomingPacket(void) { return processPacketData(0, 0); }
 bool ChainBase::checkPacket(const uint8_t *buffer, uint16_t size) {
   return (checkPacketHeader(buffer, size) && checkPacketTail(buffer, size) &&
           checkCRC(buffer, size) && checkPacketLength(buffer, size));
