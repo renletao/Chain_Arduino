@@ -9,27 +9,23 @@
 
 #include <Arduino.h>
 
+#define TIMEOUT_MS (1) // 超时时间，单位为毫秒
+
 #define PACK_HEAD_HIGH (0xAA) // Packet header
 #define PACK_HEAD_LOW (0x55)  // Packet header
 #define PACK_END_HIGH (0x55)  // Packet tail
 #define PACK_END_LOW (0xAA)   // Packet tail
 
-#define BUFFER_SIZE (1024) // Buffer size
-
+#define RECEIVE_BUFFER_SIZE (1024) // Buffer size
+#define SEND_BUFFER_SIZE (256)     // Buffer size
+#define CMD_BUFFER_SIZE (256)
+#define KEY_BUFFER_SIZE (16)
 typedef enum {
-  CHAIN_OK = 0x00U,            // 操作成功
-  CHAIN_PAACKET_ERROR = 0x01U, // 数据包错误
-  CHAIN_BUSY = 0x02U,          // 设备繁忙
-  CHAIN_TIMEOUT = 0x03U        // 操作超时
+  CHAIN_OK = 0x00U,                  // 操作成功
+  CHAIN_RETURN_PACKET_ERROR = 0x01U, // 数据包错误
+  CHAIN_BUSY = 0x02U,                // 设备繁忙
+  CHAIN_TIMEOUT = 0x03U              // 操作超时
 } chain_status_t;
-
-typedef enum {
-  PACKET_OK = 0,       // 数据包正确
-  PACKET_HEADER_ERROR, // 包头错误
-  PACKET_TAIL_ERROR,   // 包尾错误
-  PACKET_LENGTH_ERROR, // 长度错误
-  PACKET_CRC_ERROR     // CRC 错误
-} packet_status_t;
 
 typedef enum {
   CHAIN_SET_RGB_VALUE = 0x20, // Command to set RGB values
@@ -61,24 +57,24 @@ typedef struct {
   uint8_t R;
   uint8_t G;
   uint8_t B;
-} RGB_Color_TypeDef;
-
-// 枚举获取设备个数
-const uint8_t enum_buf[10] = {0xAA, 0x55, 0x04, 0x00, 0xFF,
-                              0xFE, 0x00, 0xFD, 0x55, 0xAA};
-// 心跳包判断设备是否连接
-const uint8_t heartbeat_buf[9] = {0xAA, 0x55, 0x04, 0x00, 0xFF,
-                                  0xFD, 0xFC, 0x55, 0xAA};
+} rgb_color_typedef;
 
 class ChainBase {
 public:
-  void begin(HardwareSerial *serial, unsigned long baud = 115200,
-             uint32_t config = SERIAL_8N1, int8_t rxPin = -1, int8_t txPin = -1,
+  uint8_t cmdBuffer[CMD_BUFFER_SIZE] = {0};
+  uint16_t cmdBufferSize = 0;
+  uint8_t cmdReturnBuffer[CMD_BUFFER_SIZE] = {0};
+  size_t cmdReturnBufferSize = 0;
+  void begin(HardwareSerial *serial, int8_t rxPin = -1, int8_t txPin = -1,
+             unsigned long baud = 115200, uint32_t config = SERIAL_8N1,
              bool invert = false, unsigned long timeout_ms = 10000UL,
              uint8_t rxfifo_full_thrhd = 112UL);
+  // 发送数据
+  void send(const char *buffer, size_t size);
   void sendPacket(uint8_t cmd, uint8_t *buffer, uint16_t size, uint8_t id);
-  void receivePacket(uint8_t cmd, uint8_t id);
-  packet_status_t checkPacket(const uint8_t *buffer, uint16_t size);
+  bool processPacket(uint8_t cmd, uint8_t id);
+  bool processIncomingPacket(void);
+  bool checkPacket(const uint8_t *buffer, uint16_t size);
 
   // 判断是否有设备连接
   bool isDeviceConnected(unsigned long timeout = 100);
@@ -99,10 +95,10 @@ public:
   chain_status_t getDeviceNum(uint16_t *deviceNum, unsigned long timeout = 100);
 
   // 设置RGB灯
-  chain_status_t setRGBValue(uint8_t id, RGB_Color_TypeDef rgb, uint8_t *status,
+  chain_status_t setRGBValue(uint8_t id, rgb_color_typedef rgb, uint8_t *status,
                              unsigned long timeout = 100);
   // 获取RGB灯
-  chain_status_t getRGBValue(uint8_t id, RGB_Color_TypeDef *rgb,
+  chain_status_t getRGBValue(uint8_t id, rgb_color_typedef *rgb,
                              unsigned long timeout = 100);
 
   // 设置RGB亮度
@@ -115,30 +111,35 @@ public:
 
 private:
   HardwareSerial *serialPort = nullptr;
-  uint8_t receiveBuffer[BUFFER_SIZE]; // 接收缓冲区
-  size_t receiveBufferSize = 0;       // 当前缓冲区大小
-  size_t enumPleaseNum = 0;           // 枚举数据包请求的数量
+  uint8_t receiveBuffer[RECEIVE_BUFFER_SIZE] = {0}; // 接收缓冲区
+  size_t receiveBufferSize = 0;                     // 当前缓冲区大小
+  uint8_t sendBuffer[SEND_BUFFER_SIZE] = {0};       // 接收缓冲区
+  size_t sendBufferSize = 0;                        // 当前缓冲区大小
+  size_t enumPleaseNum = 0; // 枚举数据包请求的数量
+  uint16_t keyBuffer[KEY_BUFFER_SIZE] = {0};
+  size_t keyBufferSize = 0;
+  size_t enumPlease = 0;
   bool mutexLocked = false;
   // 获取互斥锁
   bool acquireMutex(void);
   // 释放互斥锁
   void releaseMutex(void);
-  // 发送数据
-  void send(const char *buffer, size_t size);
   // 判断缓冲区是否有数据
   bool available(void);
   // 取出数据
   void receive(void);
-  // 处理主动发送过来的数据包，主要按键，以及枚举请求包
-  void processIncomingPacket(void);
+  // 等待数据
+  bool waitForData(uint8_t cmd, uint8_t id, uint32_t timeout);
+  // 处理缓冲区的数据
+  bool processPacketData(uint8_t cmd, uint8_t id);
   // 增加数据包头
-  void addPacketHeader(uint8_t *buffer, uint16_t size);
+  void addPacketHeader(void);
   // 增加数据包尾
-  void addPacketTail(uint8_t *buffer, uint16_t size);
+  void addPacketTail(void);
   // 增加数据长度
-  void addPacketLength(uint8_t *buffer, uint16_t size);
+  void addPacketLength(uint16_t length);
   // 增加CRC
-  void addPacketCRC(uint8_t *buffer, uint16_t size);
+  void addPacketCRC(void);
   // 检测数据包头
   bool checkPacketHeader(const uint8_t *buffer, uint16_t size);
   // 检测数据包尾
