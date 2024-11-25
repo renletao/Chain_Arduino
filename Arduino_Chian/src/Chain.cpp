@@ -114,7 +114,6 @@ bool ChainBase::processPacketData(uint8_t cmd, uint8_t id) {
       if (startIndex + 4 + length + 2 <= receiveBufferSize &&
           receiveBuffer[startIndex + 4 + length] == 0x55 &&
           receiveBuffer[startIndex + 4 + length + 1] == 0xAA) {
-
         // 包头、包尾、长度加数据内容
         size_t packetSize =
             4 + length +
@@ -138,12 +137,11 @@ bool ChainBase::processPacketData(uint8_t cmd, uint8_t id) {
                    checkCRC(reinterpret_cast<const uint8_t *>(cmdReturnBuffer),
                             cmdReturnBufferSize)) {
           enumPlease++; // 计数器增加
-
         } else if (packetCmd == 0x40 && packetData6 == 0x11 &&
                    checkCRC(reinterpret_cast<const uint8_t *>(cmdReturnBuffer),
                             cmdReturnBufferSize)) {
           if (keyBufferSize < KEY_BUFFER_SIZE) {
-            keyBuffer[keyBufferSize] = packetId;
+            keyBuffer[keyBufferSize++] = packetId;
           }
         }
 
@@ -173,7 +171,11 @@ bool ChainBase::processPacketData(uint8_t cmd, uint8_t id) {
 bool ChainBase::processPacket(uint8_t cmd, uint8_t id) {
   return processPacketData(cmd, id);
 }
-bool ChainBase::processIncomingPacket(void) { return processPacketData(0, 0); }
+bool ChainBase::processIncomingPacket(void){
+    if(available()>0){
+
+    }
+}
 bool ChainBase::checkPacket(const uint8_t *buffer, uint16_t size) {
   return (checkPacketHeader(buffer, size) && checkPacketTail(buffer, size) &&
           checkCRC(buffer, size) && checkPacketLength(buffer, size));
@@ -214,7 +216,7 @@ bool ChainBase::waitForData(uint8_t cmd, uint8_t id, uint32_t timeout) {
         return true;
       }
     }
-    delay(3);
+    delay(1);
   }
   return false;
 }
@@ -224,7 +226,7 @@ size_t ChainBase::getEnumPleaseNum(void) {
   enumPlease = 0;
   return temp;
 }
-void getKeyBuffer(uint16_t *outBuffer, size_t *length) {
+void ChainBase::getKeyBuffer(uint16_t *outBuffer, size_t *length) {
   *length = keyBufferSize; // 返回当前keyBuffer的有效数据长度
 
   // 复制keyBuffer的内容到outBuffer
@@ -232,7 +234,7 @@ void getKeyBuffer(uint16_t *outBuffer, size_t *length) {
 
   // 清空keyBuffer
   memset(keyBuffer, 0, KEY_BUFFER_SIZE); // 清空keyBuffer数组
-  keyBufferSize = 0;                            // 重置keyBufferSize
+  keyBufferSize = 0;                     // 重置keyBufferSize
 }
 chain_status_t ChainBase::getBootloaderVersion(uint8_t id,
                                                uint8_t *bootloaderVersion,

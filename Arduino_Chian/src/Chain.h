@@ -76,7 +76,7 @@ public:
   bool processIncomingPacket(void);
   bool checkPacket(const uint8_t *buffer, uint16_t size);
   size_t getEnumPleaseNum(void);
-  void getKeyBuffer(uint16_t* outBuffer, size_t *length);
+  void getKeyBuffer(uint16_t *outBuffer, size_t *length);
   // 判断是否有设备连接
   bool isDeviceConnected(unsigned long timeout = 100);
 
@@ -109,7 +109,6 @@ public:
   // 获取RGB亮度
   chain_status_t getRGBLight(uint8_t id, uint8_t *rgb_light,
                              unsigned long timeout = 100);
-
 private:
   HardwareSerial *serialPort = nullptr;
   uint8_t receiveBuffer[RECEIVE_BUFFER_SIZE] = {0}; // 接收缓冲区
@@ -117,9 +116,9 @@ private:
   uint8_t sendBuffer[SEND_BUFFER_SIZE] = {0};       // 接收缓冲区
   size_t sendBufferSize = 0;                        // 当前缓冲区大小
   size_t enumPleaseNum = 0; // 枚举数据包请求的数量
+  size_t enumPlease = 0;
   uint16_t keyBuffer[KEY_BUFFER_SIZE] = {0};
   size_t keyBufferSize = 0;
-  size_t enumPlease = 0;
   bool mutexLocked = false;
   // 获取互斥锁
   bool acquireMutex(void);
