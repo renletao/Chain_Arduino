@@ -1,7 +1,7 @@
 #include "Chain.h"
 #include "M5Unified.h"
 
-ChainBase chain;
+ChainCommon chain;
 
 #define TXD_PIN GPIO_NUM_17 // 串口发送端口(Tx)
 #define RXD_PIN GPIO_NUM_16 // 串口接收端口(Rx)

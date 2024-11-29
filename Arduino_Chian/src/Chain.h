@@ -59,7 +59,7 @@ typedef struct {
   uint8_t B;
 } rgb_color_typedef;
 
-class ChainBase {
+class ChainCommon {
 public:
   uint8_t cmdBuffer[CMD_BUFFER_SIZE] = {0};
   uint16_t cmdBufferSize = 0;
@@ -73,7 +73,7 @@ public:
   void send(const char *buffer, size_t size);
   void sendPacket(uint8_t cmd, uint8_t *buffer, uint16_t size, uint8_t id);
   bool processPacket(uint8_t cmd, uint8_t id);
-  bool processIncomingPacket(void);
+  void processIncomingPacket(void);
   bool checkPacket(const uint8_t *buffer, uint16_t size);
   size_t getEnumPleaseNum(void);
   void getKeyBuffer(uint16_t *outBuffer, size_t *length);
@@ -109,6 +109,7 @@ public:
   // 获取RGB亮度
   chain_status_t getRGBLight(uint8_t id, uint8_t *rgb_light,
                              unsigned long timeout = 100);
+
 private:
   HardwareSerial *serialPort = nullptr;
   uint8_t receiveBuffer[RECEIVE_BUFFER_SIZE] = {0}; // 接收缓冲区
@@ -131,7 +132,7 @@ private:
   // 等待数据
   bool waitForData(uint8_t cmd, uint8_t id, uint32_t timeout);
   // 处理缓冲区的数据
-  bool processPacketData(uint8_t cmd, uint8_t id);
+  bool processPacketData(uint8_t cmd = 0, uint8_t id = 0);
   // 增加数据包头
   void addPacketHeader(void);
   // 增加数据包尾
