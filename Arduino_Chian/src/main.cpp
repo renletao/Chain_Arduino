@@ -2,32 +2,97 @@
 #include "M5Unified.h"
 
 ChainCommon chain;
+device_list_t *devices_list;
 
 #define TXD_PIN GPIO_NUM_17 // 串口发送端口(Tx)
 #define RXD_PIN GPIO_NUM_16 // 串口接收端口(Rx)
+
+chain_status_t operation_status;
+// 按键
+uint16_t keyBuf[KEY_BUFFER_SIZE] = {0};
+size_t keyBufSize = 0;
+
+// 设备数量
+uint16_t device_nums = 0;
+
+uint8_t sta = 0;
+
+void printDeviceList(device_list_t *devices);
 void setup() {
   M5.begin();
   Serial.begin(115200);
+  M5.Display.setTextFont(&fonts::efontCN_16);
+  M5.Display.fillScreen(BLACK);
+  M5.Display.setTextScroll(true);
   chain.begin(&Serial2, RXD_PIN, TXD_PIN);
-}
-
-uint8_t update_nums = 0;
-void loop() {
-  M5.update();
-  uint16_t keyBuf[KEY_BUFFER_SIZE] = {0};
-  size_t keyBufSize = 0;
-  chain.processIncomingPacket();
-  // uint8_t boot = 0;
-  // uint8_t status = chain.getBootloaderVersion(2, &boot);
-  // Serial.printf("status %d\r\n", status);
-  // Serial.printf("boot %d\r\n", boot);
-  // const uint8_t testBuffer[5] = {0x01,0x02,0x03,0x04,0x05};
-  // chain.send(reinterpret_cast<const char *>(testBuffer),5);
-  chain.getKeyBuffer(keyBuf, &keyBufSize);
-  if (keyBufSize > 0) {
-    for (uint8_t i = 0; i < keyBufSize; i++) {
-      Serial.printf("KEY——PRESS %d的 \r\n", keyBuf[i]);
+  operation_status = chain.getDeviceNum(&device_nums);
+  if (operation_status == CHAIN_OK) {
+    // 申请内存空间
+    devices_list = (device_list_t *)malloc(sizeof(device_list_t));
+    devices_list->count = device_nums;
+    devices_list->devices =
+        (device_t *)malloc(sizeof(device_t) * device_nums); // 分配内存
+    operation_status = chain.getDeviceList(devices_list);
+    Serial.print(operation_status);
+    if (operation_status == CHAIN_OK) {
+      printDeviceList(devices_list);
     }
   }
-  delay(100);
+  for (uint8_t i = 1; i <= 5; i++) {
+    chain.setRGBValue(i, {0xFF, 0x00, 0x00}, &sta);
+  }
+}
+
+void loop() {
+  M5.update();
+  // operation_status = chain.isDeviceConnected();
+  // if (operation_status == CHAIN_OK) {
+  //   M5.Display.printf(">>>设备连接成功\r\n");
+  //   Serial.printf(">>>设备连接成功\r\n");
+  // } else {
+  //   M5.Display.printf("设备没有连接,指令执行失败\r\n");
+  //   Serial.printf("设备没有连接、指令执行失败、r\n");
+  // }
+  // if (operation_status == CHAIN_OK) {
+  //   operation_status = chain.getDeviceNum(&device_nums);
+  //   if (operation_status == CHAIN_OK) {
+  //     M5.Display.printf(">>>设备个数 %d\r\n", device_nums);
+  //     Serial.printf(">>>设备连接成功 %d\r\n", device_nums);
+  //   } else {
+  //     M5.Display.printf("指令执行失败\r\n");
+  //     Serial.printf("指令执行失败r\n");
+  //   }
+  //   // chain.processIncomingPacket();
+  //   chain.getKeyBuffer(keyBuf, &keyBufSize);
+  //   if (keyBufSize > 0) {
+  //     for (uint8_t i = 0; i < keyBufSize; i++) {
+  //       M5.Display.printf(">>>KEY PRESS %d \r\n", keyBuf[i]);
+  //       Serial.printf(">>>KEY PRESS %d \r\n", keyBuf[i]);
+  //     }
+  //   }
+  // }
+  delay(10);
+}
+
+void printDeviceList(device_list_t *devices) {
+  if (devices == NULL) {
+    Serial.println("设备列表为空。");
+    return;
+  }
+
+  Serial.print("设备数量: ");
+  Serial.println(devices->count);
+  M5.Display.print("  >>> 设备数量: ");
+  M5.Display.println(devices->count);
+
+  for (uint8_t i = 0; i < devices->count; i++) {
+    Serial.print("设备 ID: ");
+    Serial.println(devices->devices[i].id);
+    Serial.print("设备类型: ");
+    Serial.println(devices->devices[i].device_type);
+    M5.Display.print("  >>> 设备 ID: ");
+    M5.Display.println(devices->devices[i].id);
+    M5.Display.print("  >>> 设备类型: ");
+    M5.Display.println(devices->devices[i].device_type);
+  }
 }

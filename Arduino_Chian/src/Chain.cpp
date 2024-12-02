@@ -6,14 +6,16 @@
 
 #include "Chain.h"
 
+// 锁定互斥量
 bool ChainCommon::acquireMutex(void) {
-  if (mutexLocked == false) {
+  if (!mutexLocked) {
     mutexLocked = true;
     return true;
   }
   return false;
 }
 
+// 释放互斥量
 void ChainCommon::releaseMutex(void) { mutexLocked = false; }
 
 void ChainCommon::begin(HardwareSerial *serial, int8_t rxPin, int8_t txPin,
@@ -23,54 +25,62 @@ void ChainCommon::begin(HardwareSerial *serial, int8_t rxPin, int8_t txPin,
   serialPort->begin(baud, SERIAL_8N1, rxPin, txPin, invert, timeout_ms,
                     rxfifo_full_thrhd);
 }
+// 发送数据
 void ChainCommon::send(const char *buffer, size_t size) {
   if (serialPort) {
     serialPort->write(buffer, size);
   }
 }
 
-// 增加数据包头
+// 添加数据包头
 void ChainCommon::addPacketHeader(void) {
   sendBuffer[0] = PACK_HEAD_HIGH;
   sendBuffer[1] = PACK_HEAD_LOW;
 }
-// 增加数据包尾
+
+// 添加数据包尾
 void ChainCommon::addPacketTail(void) {
   sendBuffer[sendBufferSize - 2] = PACK_END_HIGH;
   sendBuffer[sendBufferSize - 1] = PACK_END_LOW;
 }
-// 增加数据长度
+
+// 设置数据包长度
 void ChainCommon::addPacketLength(uint16_t length) {
   sendBuffer[2] = (uint8_t)(length & 0xFF);
   sendBuffer[3] = (uint8_t)((length >> 8) & 0xFF);
 }
-// 增加CRC
+
+// 计算并设置 CRC 校验
 void ChainCommon::addPacketCRC(void) {
   uint8_t crc8 = calculateCRC(sendBuffer, sendBufferSize);
   sendBuffer[sendBufferSize - 3] = crc8;
 }
-// 检测数据包头
+
+// 检查数据包头
 bool ChainCommon::checkPacketHeader(const uint8_t *buffer, uint16_t size) {
   return (size >= 2 && buffer[0] == PACK_HEAD_HIGH &&
           buffer[1] == PACK_HEAD_LOW);
 }
-// 检测数据包尾
+
+// 检查数据包尾
 bool ChainCommon::checkPacketTail(const uint8_t *buffer, uint16_t size) {
   return (size >= 2 && buffer[size - 1] == PACK_END_LOW &&
           buffer[size - 2] == PACK_END_HIGH);
 }
-// 检测CRC
+
+// 检查数据包的 CRC 校验
 bool ChainCommon::checkCRC(const uint8_t *buffer, uint16_t size) {
   uint8_t crc8 = calculateCRC(buffer, size);
   return (crc8 == buffer[size - 3]);
 }
-// 检测数据长度
+
+// 检查数据包的长度
 bool ChainCommon::checkPacketLength(const uint8_t *buffer, uint16_t size) {
   uint16_t length = (uint16_t)(buffer[3] << 8) | buffer[2];
   return ((length + 6) == size);
 }
 
-//  计算CRC
+// 计算 CRC 校验值
 uint8_t ChainCommon::calculateCRC(const uint8_t *buffer, uint16_t size) {
   uint8_t crc8 = 0;
   for (uint8_t i = 4; i < (size - 3); i++) {
@@ -78,8 +88,10 @@ uint8_t ChainCommon::calculateCRC(const uint8_t *buffer, uint16_t size) {
   }
   return crc8;
 }
-void ChainCommon::sendPacket(uint8_t cmd, uint8_t *buffer, uint16_t size,
-                             uint8_t id) {
+
+// 发送数据包
+void ChainCommon::sendPacket(uint8_t cmd, const uint8_t *buffer, uint16_t size,
+                             uint16_t id) {
   memset(sendBuffer, 0, sendBufferSize); // 清除缓冲
   sendBufferSize = size + 9;
   addPacketHeader();
@@ -93,7 +105,7 @@ void ChainCommon::sendPacket(uint8_t cmd, uint8_t *buffer, uint16_t size,
 }
 
 // 辅助函数：处理包的提取、头尾检查和数据清理
-bool ChainCommon::processPacketData(uint8_t cmd, uint8_t id) {
+bool ChainCommon::processPacketData(uint8_t cmd, uint16_t id) {
   size_t startIndex = 0;
   bool packetFound = false; // 标记是否找到符合条件的数据包
 
@@ -126,9 +138,11 @@ bool ChainCommon::processPacketData(uint8_t cmd, uint8_t id) {
         // 更新缓冲区大小
         size_t remainingSize = receiveBufferSize - packetSize;
         receiveBufferSize = remainingSize;
+
         uint8_t packetId = packetData[4];
         uint8_t packetCmd = packetData[5];
         uint8_t packetData6 = packetData[6];
+
         if (packetId == id && packetCmd == cmd) {
           memcpy(cmdReturnBuffer, packetData, packetSize);
           cmdReturnBufferSize = packetSize;
@@ -136,7 +150,7 @@ bool ChainCommon::processPacketData(uint8_t cmd, uint8_t id) {
         } else if (packetCmd == CHAIN_ENUM_PLEASE &&
                    checkCRC(reinterpret_cast<const uint8_t *>(cmdReturnBuffer),
                             cmdReturnBufferSize)) {
-          enumPlease++; // 计数器增加
+          enumPleaseCount++; // 计数器增加
         } else if (packetCmd == 0x40 && packetData6 == 0x11 &&
                    checkCRC(reinterpret_cast<const uint8_t *>(cmdReturnBuffer),
                             cmdReturnBufferSize)) {
@@ -168,7 +182,7 @@ bool ChainCommon::processPacketData(uint8_t cmd, uint8_t id) {
   receiveBufferSize = 0;                           // 重置缓冲区大小
   return packetFound;
 }
-bool ChainCommon::processPacket(uint8_t cmd, uint8_t id) {
+bool ChainCommon::processPacket(uint8_t cmd, uint16_t id) {
   return processPacketData(cmd, id);
 }
 void ChainCommon::processIncomingPacket(void) {
@@ -206,7 +220,7 @@ void ChainCommon::receive(void) {
   }
 }
 
-bool ChainCommon::waitForData(uint8_t cmd, uint8_t id, uint32_t timeout) {
+bool ChainCommon::waitForData(uint8_t cmd, uint16_t id, uint32_t timeout) {
   uint32_t startTime = millis(); // 获取当前时间
   while (millis() - startTime < timeout) {
     // 检查是否收到数据
@@ -223,10 +237,11 @@ bool ChainCommon::waitForData(uint8_t cmd, uint8_t id, uint32_t timeout) {
 }
 
 size_t ChainCommon::getEnumPleaseNum(void) {
-  size_t temp = enumPlease;
-  enumPlease = 0;
+  size_t temp = enumPleaseCount;
+  enumPleaseCount = 0;
   return temp;
 }
+
 void ChainCommon::getKeyBuffer(uint16_t *outBuffer, size_t *length) {
   *length = keyBufferSize; // 返回当前keyBuffer的有效数据长度
 
@@ -237,7 +252,128 @@ void ChainCommon::getKeyBuffer(uint16_t *outBuffer, size_t *length) {
   memset(keyBuffer, 0, KEY_BUFFER_SIZE); // 清空keyBuffer数组
   keyBufferSize = 0;                     // 重置keyBufferSize
 }
-chain_status_t ChainCommon::getBootloaderVersion(uint8_t id,
+
+chain_status_t ChainCommon::setRGBValue(uint16_t id, rgb_color rgb,
+                                        uint8_t *operationStatus,
+                                        unsigned long timeout) {
+  // 指令处理模板
+  chain_status_t status = CHAIN_OK;
+  if (acquireMutex()) {
+    // 这里发送数据
+    memset(cmdBuffer, 0, cmdBufferSize);
+    cmdBufferSize = 0;
+    cmdBuffer[cmdBufferSize++] = rgb.R;
+    cmdBuffer[cmdBufferSize++] = rgb.G;
+    cmdBuffer[cmdBufferSize++] = rgb.B;
+    sendPacket(CHAIN_SET_RGB_VALUE, cmdBuffer, cmdBufferSize, id);
+
+    // 这里等待接收数据
+    if (waitForData(CHAIN_SET_RGB_VALUE, id, timeout)) {
+      if (checkPacket(reinterpret_cast<const uint8_t *>(cmdReturnBuffer),
+                      cmdReturnBufferSize)) {
+        // 这里传参要返回的数据
+        *operationStatus = cmdReturnBuffer[6];
+      } else {
+        status = CHAIN_RETURN_PACKET_ERROR;
+      }
+    } else {
+      status = CHAIN_TIMEOUT;
+    }
+    releaseMutex();
+  } else {
+    status = CHAIN_BUSY;
+  }
+  return status;
+}
+chain_status_t ChainCommon::getRGBValue(uint16_t id, rgb_color *rgb,
+                                        unsigned long timeout) {
+  // 指令处理模板
+  chain_status_t status = CHAIN_OK;
+  if (acquireMutex()) {
+    // 这里发送数据
+    memset(cmdBuffer, 0, cmdBufferSize);
+    cmdBufferSize = 0;
+    sendPacket(CHAIN_GET_RGB_VALUE, cmdBuffer, cmdBufferSize, id);
+
+    // 这里等待接收数据
+    if (waitForData(CHAIN_GET_RGB_VALUE, id, timeout)) {
+      if (checkPacket(reinterpret_cast<const uint8_t *>(cmdReturnBuffer),
+                      cmdReturnBufferSize)) {
+        // 这里传参要返回的数据
+        // *bootloaderVersion = cmdReturnBuffer[6];
+        rgb->R = cmdReturnBuffer[6];
+        rgb->G = cmdReturnBuffer[7];
+        rgb->B = cmdReturnBuffer[6];
+      } else {
+        status = CHAIN_RETURN_PACKET_ERROR;
+      }
+    } else {
+      status = CHAIN_TIMEOUT;
+    }
+    releaseMutex();
+  } else {
+    status = CHAIN_BUSY;
+  }
+  return status;
+}
+chain_status_t ChainCommon::setRGBLight(uint16_t id, uint8_t rgbBrightness,
+                                        uint8_t *operationStatus,
+                                        unsigned long timeout) {
+  // 指令处理模板
+  chain_status_t status = CHAIN_OK;
+  if (acquireMutex()) {
+    // 这里发送数据
+    memset(cmdBuffer, 0, cmdBufferSize);
+    cmdBufferSize = 0;
+    sendPacket(CHAIN_GET_BOOTLOADER_VERSION, cmdBuffer, cmdBufferSize, id);
+
+    // 这里等待接收数据
+    if (waitForData(CHAIN_GET_BOOTLOADER_VERSION, id, timeout)) {
+      if (checkPacket(reinterpret_cast<const uint8_t *>(cmdReturnBuffer),
+                      cmdReturnBufferSize)) {
+        // 这里传参要返回的数据
+        // *bootloaderVersion = cmdReturnBuffer[6];
+      } else {
+        status = CHAIN_RETURN_PACKET_ERROR;
+      }
+    } else {
+      status = CHAIN_TIMEOUT;
+    }
+    releaseMutex();
+  } else {
+    status = CHAIN_BUSY;
+  }
+  return status;
+}
+chain_status_t ChainCommon::getRGBLight(uint16_t id, uint8_t *rgbBrightness,
+                                        unsigned long timeout) {
+  // 指令处理模板
+  chain_status_t status = CHAIN_OK;
+  if (acquireMutex()) {
+    // 这里发送数据
+    memset(cmdBuffer, 0, cmdBufferSize);
+    cmdBufferSize = 0;
+    sendPacket(CHAIN_GET_RGB_LIGHT, cmdBuffer, cmdBufferSize, id);
+
+    // 这里等待接收数据
+    if (waitForData(CHAIN_GET_RGB_LIGHT, id, timeout)) {
+      if (checkPacket(reinterpret_cast<const uint8_t *>(cmdReturnBuffer),
+                      cmdReturnBufferSize)) {
+        // 这里传参要返回的数据
+        *rgbBrightness = cmdReturnBuffer[6];
+      } else {
+        status = CHAIN_RETURN_PACKET_ERROR;
+      }
+    } else {
+      status = CHAIN_TIMEOUT;
+    }
+    releaseMutex();
+  } else {
+    status = CHAIN_BUSY;
+  }
+  return status;
+}
+chain_status_t ChainCommon::getBootloaderVersion(uint16_t id,
                                                  uint8_t *bootloaderVersion,
                                                  unsigned long timeout) {
   chain_status_t status = CHAIN_OK;
@@ -262,3 +398,161 @@ chain_status_t ChainCommon::getBootloaderVersion(uint8_t id,
   }
   return status;
 }
+chain_status_t ChainCommon::getFirmwareVersion(uint16_t id,
+                                               uint8_t *firmwareVersion,
+                                               unsigned long timeout) {
+  chain_status_t status = CHAIN_OK;
+  if (acquireMutex()) {
+    // 这里发送数据
+    memset(cmdBuffer, 0, cmdBufferSize);
+    cmdBufferSize = 0;
+    sendPacket(CHAIN_GET_VERSION_DEVICE, cmdBuffer, cmdBufferSize, id);
+
+    // 这里等待接收数据
+    if (waitForData(CHAIN_GET_VERSION_DEVICE, id, timeout)) {
+      if (checkPacket(reinterpret_cast<const uint8_t *>(cmdReturnBuffer),
+                      cmdReturnBufferSize)) {
+        // 这里传参要返回的数据
+        *firmwareVersion = cmdReturnBuffer[6];
+      } else {
+        status = CHAIN_RETURN_PACKET_ERROR;
+      }
+    } else {
+      status = CHAIN_TIMEOUT;
+    }
+    releaseMutex();
+  } else {
+    status = CHAIN_BUSY;
+  }
+  return status;
+}
+chain_status_t ChainCommon::getDeviceType(uint16_t id, uint16_t *deviceType,
+                                          unsigned long timeout) {
+  chain_status_t status = CHAIN_OK;
+  if (acquireMutex()) {
+    // 这里发送数据
+    memset(cmdBuffer, 0, cmdBufferSize);
+    cmdBufferSize = 0;
+    sendPacket(CHAIN_GET_DEVICE_TYPE, cmdBuffer, cmdBufferSize, id);
+
+    // 这里等待接收数据
+    if (waitForData(CHAIN_GET_DEVICE_TYPE, id, timeout)) {
+      if (checkPacket(reinterpret_cast<const uint8_t *>(cmdReturnBuffer),
+                      cmdReturnBufferSize)) {
+        // 这里传参要返回的数据
+        *deviceType = (cmdReturnBuffer[7] << 8) | cmdReturnBuffer[6];
+      } else {
+        status = CHAIN_RETURN_PACKET_ERROR;
+      }
+    } else {
+      status = CHAIN_TIMEOUT;
+    }
+    releaseMutex();
+  } else {
+    status = CHAIN_BUSY;
+  }
+  return status;
+}
+chain_status_t ChainCommon::getDeviceNum(uint16_t *deviceNum,
+                                         unsigned long timeout) {
+  chain_status_t status = CHAIN_OK;
+  if (acquireMutex()) {
+    // 这里发送数据
+    memset(cmdBuffer, 0, cmdBufferSize);
+    cmdBufferSize = 0;
+    cmdBuffer[cmdBufferSize++] = 0x00;
+    sendPacket(CHAIN_ENUM, cmdBuffer, cmdBufferSize, 0xFF);
+
+    // 这里等待接收数据
+    if (waitForData(CHAIN_ENUM, 0xFF, timeout)) {
+      if (checkPacket(reinterpret_cast<const uint8_t *>(cmdReturnBuffer),
+                      cmdReturnBufferSize)) {
+        // 这里传参要返回的数据
+        *deviceNum = cmdReturnBuffer[6];
+      } else {
+        status = CHAIN_RETURN_PACKET_ERROR;
+      }
+    } else {
+      status = CHAIN_TIMEOUT;
+    }
+    releaseMutex();
+  } else {
+    status = CHAIN_BUSY;
+  }
+  return status;
+}
+
+// 检查是否有设备连接
+// 根据传参的次数，询问是否有设备连接
+chain_status_t ChainCommon::isDeviceConnected(uint8_t maxRetries,
+                                              unsigned long timeout) {
+  chain_status_t status = CHAIN_OK;
+  int retryCount = 0;
+  if (acquireMutex()) {
+    while (retryCount < maxRetries) {
+      // 发送数据包
+      memset(cmdBuffer, 0, cmdBufferSize);
+      cmdBufferSize = 0;
+      sendPacket(CHAIN_HEARTBEAT, cmdBuffer, cmdBufferSize, 0xFF);
+
+      // 等待接收数据
+      if (waitForData(CHAIN_HEARTBEAT, 0xFF, timeout)) {
+        // 校验数据包
+        if (checkPacket(reinterpret_cast<const uint8_t *>(cmdReturnBuffer),
+                        cmdReturnBufferSize)) {
+          break;
+        }
+      }
+      retryCount++; // 增加重试次数
+    }
+    if (retryCount == maxRetries) {
+      status = CHAIN_TIMEOUT;
+    }
+    releaseMutex();
+  } else {
+    status = CHAIN_BUSY;
+  }
+  return status;
+}
+
+// 获取连接设备的类型
+chain_status_t ChainCommon::getDeviceList(device_list_t *list,
+                                          unsigned long timeout) {
+  chain_status_t status = CHAIN_OK;
+  unsigned long startTime = millis();
+  for (uint16_t i = 0; i < list->count; i++) {
+
+    list->devices[i].id = i + 1;
+    status = getDeviceType(i + 1, &list->devices[i].device_type, timeout);
+    if (status != CHAIN_OK) {
+      break;
+    }
+  }
+  return status;
+}
+
+// 指令处理模板
+// chain_status_t status = CHAIN_OK;
+// if (acquireMutex()) {
+//   // 这里发送数据
+//   memset(cmdBuffer, 0, cmdBufferSize);
+//   cmdBufferSize = 0;
+//   sendPacket(CHAIN_GET_BOOTLOADER_VERSION, cmdBuffer, cmdBufferSize, id);
+
+//   // 这里等待接收数据
+//   if (waitForData(CHAIN_GET_BOOTLOADER_VERSION, id, timeout)) {
+//     if (checkPacket(reinterpret_cast<const uint8_t *>(cmdReturnBuffer),
+//                     cmdReturnBufferSize)) {
+//       // 这里传参要返回的数据
+//       *bootloaderVersion = cmdReturnBuffer[6];
+//     } else {
+//       status = CHAIN_RETURN_PACKET_ERROR;
+//     }
+//   } else {
+//     status = CHAIN_TIMEOUT;
+//   }
+//   releaseMutex();
+// } else {
+//   status = CHAIN_BUSY;
+// }
+//  return status;
