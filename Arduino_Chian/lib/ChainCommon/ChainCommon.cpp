@@ -4,7 +4,7 @@
  *SPDX-License-Identifier: MIT
  */
 
-#include "Chain.h"
+#include "ChainCommon.h"
 
 // 锁定互斥量
 bool ChainCommon::acquireMutex(void) {
@@ -25,6 +25,7 @@ void ChainCommon::begin(HardwareSerial *serial, int8_t rxPin, int8_t txPin,
   serialPort->begin(baud, SERIAL_8N1, rxPin, txPin, invert, timeout_ms,
                     rxfifo_full_thrhd);
 }
+
 // 发送数据
 void ChainCommon::send(const char *buffer, size_t size) {
   if (serialPort) {

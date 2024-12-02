@@ -4,8 +4,8 @@
  *SPDX-License-Identifier: MIT
  */
 
-#ifndef CHAIN_H
-#define CHAIN_H
+#ifndef CHAIN_COMMON_H
+#define CHAIN_COMMON_H
 
 #include <Arduino.h>
 
@@ -153,4 +153,4 @@ private:
   bool checkCRC(const uint8_t *buffer, uint16_t size);
 };
 
-#endif // CHAIN_H
+#endif // CHAIN_COMMON_H
