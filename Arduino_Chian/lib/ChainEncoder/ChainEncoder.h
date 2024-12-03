@@ -9,7 +9,7 @@
 
 #include <ChainCommon.h>
 
-class ChainEncoder : public ChainCommon {
+class ChainEncoder : virtual public ChainCommon {
 
 public:
   chain_status_t getEncoderValue(uint8_t id, int16_t *value,
@@ -26,4 +26,4 @@ public:
 private:
 };
 
-#endif // CHAIN_COMMON_H
+#endif // CHAIN_ENCODER_H

@@ -113,8 +113,7 @@ public:
   void getKeyBuffer(uint16_t *outBuffer, size_t *length);
 
 private:
-  HardwareSerial *serialPort = nullptr;
-
+  HardwareSerial *serialPort; // 串口实例
   // 缓冲区
   uint8_t receiveBuffer[RECEIVE_BUFFER_SIZE] = {0};
   size_t receiveBufferSize = 0;
