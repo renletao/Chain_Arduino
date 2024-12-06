@@ -9,21 +9,12 @@
 
 #include <ChainCommon.h>
 
+#define CHAIN_KEY_TYPE_CODE (0x0003)
 class ChainKey : virtual public ChainCommon {
-
 public:
-  chain_status_t getEncoderValue(uint8_t id, int16_t *value,
-                                 unsigned long timeout = 100);
-  chain_status_t getEncoderIncValue(uint8_t id, int16_t *incValue,
-                                    unsigned long timeout = 100);
-  chain_status_t resetEncoderValue(uint8_t id, unsigned long timeout = 100);
-  chain_status_t resetEncoderIncValue(uint8_t id, unsigned long timeout = 100);
-  chain_status_t setEncoderABStatus(uint8_t id, uint8_t status,
-                                    unsigned long timeout = 100);
-  chain_status_t getEncoderABStatus(uint8_t id, uint8_t *status,
-                                    unsigned long timeout = 100);
+    uint16_t getKeyTypeCode(void);
 
 private:
 };
 
-#endif // CHAIN_KEY_H
+#endif  // CHAIN_KEY_H

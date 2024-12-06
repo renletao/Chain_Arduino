@@ -23,12 +23,7 @@
 //   M5.Display.setTextFont(&fonts::efontCN_16);
 //   M5.Display.fillScreen(BLACK);
 //   M5.Display.setTextScroll(true);
-
 //   chain.begin(&Serial2, RXD_PIN, TXD_PIN);
-//   // Serial.printf(chain.dump());
-//   // chain.key[1].asdasdasd();
-//   // chain.led[0].asdasd();
-//   // chann.getLEDNum()
 
 //   operation_status = chain.getDeviceNum(&device_nums);
 //   if (operation_status == CHAIN_OK) {
@@ -44,40 +39,33 @@
 //     }
 //   }
 
-//   for (uint8_t i = 1; i <= 5; i++) {
-//     chain.setRGBValue(i, {0xFF, 0x00, 0xFF}, &sta);
+//   for (uint8_t i = 0; i < devices_list->count; i++) {
+//     if (devices_list->devices[i].device_type == 0x03) {
+//       chain.setRGBLight(devices_list->devices[i].id, 40, &sta, 1);
+//       chain.setRGBValue(devices_list->devices[i].id, {0xFF, 0x00, 0xFF},
+//       &sta);
+//     }
 //   }
+//   delay(20);
 // }
 
 // void loop() {
 //   M5.update();
-//   operation_status = chain.isDeviceConnected();
-//   if (operation_status == CHAIN_OK) {
-//     M5.Display.printf(">>>设备连接成功\r\n");
-//     Serial.printf(">>>设备连接成功\r\n");
-//   } else {
-//     M5.Display.printf("设备没有连接,指令执行失败\r\n");
-//     Serial.printf("设备没有连接、指令执行失败、r\n");
-//   }
-//   if (operation_status == CHAIN_OK) {
-//     operation_status = chain.getDeviceNum(&device_nums);
-//     if (operation_status == CHAIN_OK) {
-//       M5.Display.printf(">>>设备个数 %d\r\n", device_nums);
-//       Serial.printf(">>>设备连接成功 %d\r\n", device_nums);
-//     } else {
-//       M5.Display.printf("指令执行失败\r\n");
-//       Serial.printf("指令执行失败r\n");
-//     }
-//     // chain.processIncomingPacket();
-//     chain.getKeyBuffer(keyBuf, &keyBufSize);
-//     if (keyBufSize > 0) {
-//       for (uint8_t i = 0; i < keyBufSize; i++) {
-//         M5.Display.printf(">>>KEY PRESS %d \r\n", keyBuf[i]);
-//         Serial.printf(">>>KEY PRESS %d \r\n", keyBuf[i]);
-//       }
+//   for (uint8_t i = 0; i < devices_list->count; i++) {
+//     if (devices_list->devices[i].device_type == 0x03) {
+//       uint8_t light = 0;
+//       chain.getRGBLight(devices_list->devices[i].id, &light);
+//       Serial.printf("         light %d\r\n", light);
 //     }
 //   }
-//   delay(10);
+//   chain.getKeyBuffer(keyBuf, &keyBufSize);
+//   if (keyBufSize > 0) {
+//     for (uint8_t i = 0; i < keyBufSize; i++) {
+//       M5.Display.printf(">>>KEY PRESS %d \r\n", keyBuf[i]);
+//       Serial.printf(">>>KEY PRESS %d \r\n", keyBuf[i]);
+//     }
+//   }
+//   delay(50);
 // }
 
 // void printDeviceList(device_list_t *devices) {
