@@ -3,20 +3,16 @@
 chain_status_t ChainJoystick::getJoystick16Adc(uint8_t id, uint16_t *xAdcValue, uint16_t *yAdcValue,
                                                unsigned long timeout)
 {
-    // 指令处理模板
     chain_status_t status = CHAIN_OK;
     if (acquireMutex()) {
-        // 这里发送数据
         memset(cmdBuffer, 0, cmdBufferSize);
         cmdBufferSize = 0;
         sendPacket(id, CHAIN_JOYSTICK_GET_16ADC, cmdBuffer, cmdBufferSize);
 
-        // 这里等待接收数据
         if (waitForData(id, CHAIN_JOYSTICK_GET_16ADC, timeout)) {
-            if (checkPacket(reinterpret_cast<const uint8_t *>(cmdReturnBuffer), cmdReturnBufferSize)) {
-                // 这里传参要返回的数据
-                *xAdcValue = (cmdReturnBuffer[7] << 8) | cmdReturnBuffer[6];
-                *yAdcValue = (cmdReturnBuffer[9] << 8) | cmdReturnBuffer[8];
+            if (checkPacket(reinterpret_cast<const uint8_t *>(returnPacket), returnPacketSize)) {
+                *xAdcValue = (returnPacket[7] << 8) | returnPacket[6];
+                *yAdcValue = (returnPacket[9] << 8) | returnPacket[8];
             } else {
                 status = CHAIN_RETURN_PACKET_ERROR;
             }
@@ -31,20 +27,16 @@ chain_status_t ChainJoystick::getJoystick16Adc(uint8_t id, uint16_t *xAdcValue, 
 }
 chain_status_t ChainJoystick::getJoystick8Adc(uint8_t id, uint8_t *xAdcValue, uint8_t *yAdcValue, unsigned long timeout)
 {
-    // 指令处理模板
     chain_status_t status = CHAIN_OK;
     if (acquireMutex()) {
-        // 这里发送数据
         memset(cmdBuffer, 0, cmdBufferSize);
         cmdBufferSize = 0;
         sendPacket(id, CHAIN_JOYSTICK_GET_8ADC, cmdBuffer, cmdBufferSize);
 
-        // 这里等待接收数据
         if (waitForData(id, CHAIN_JOYSTICK_GET_8ADC, timeout)) {
-            if (checkPacket(reinterpret_cast<const uint8_t *>(cmdReturnBuffer), cmdReturnBufferSize)) {
-                // 这里传参要返回的数据
-                *xAdcValue = cmdReturnBuffer[6];
-                *yAdcValue = cmdReturnBuffer[7];
+            if (checkPacket(reinterpret_cast<const uint8_t *>(returnPacket), returnPacketSize)) {
+                *xAdcValue = returnPacket[6];
+                *yAdcValue = returnPacket[7];
             } else {
                 status = CHAIN_RETURN_PACKET_ERROR;
             }
@@ -60,20 +52,16 @@ chain_status_t ChainJoystick::getJoystick8Adc(uint8_t id, uint8_t *xAdcValue, ui
 chain_status_t ChainJoystick::getJoystickMappedRange(uint8_t id, uint16_t *mapBufValue, uint8_t size,
                                                      unsigned long timeout)
 {
-    // 指令处理模板
     chain_status_t status = CHAIN_OK;
     if (acquireMutex()) {
-        // 这里发送数据
         memset(cmdBuffer, 0, cmdBufferSize);
         cmdBufferSize = 0;
         sendPacket(id, CHAIN_JOYSTICK_GET_ADC_XY_MAPPED_RANGE, cmdBuffer, cmdBufferSize);
 
-        // 这里等待接收数据
         if (waitForData(id, CHAIN_JOYSTICK_GET_ADC_XY_MAPPED_RANGE, timeout)) {
-            if (checkPacket(reinterpret_cast<const uint8_t *>(cmdReturnBuffer), cmdReturnBufferSize)) {
-                // 这里传参要返回的数据
+            if (checkPacket(reinterpret_cast<const uint8_t *>(returnPacket), returnPacketSize)) {
                 for (uint8_t i = 0; i < 8; i++) {
-                    mapBufValue[i] = (cmdReturnBuffer[7 + i * 2] << 8) | cmdReturnBuffer[6 + i * 2];
+                    mapBufValue[i] = (returnPacket[7 + i * 2] << 8) | returnPacket[6 + i * 2];
                 }
             } else {
                 status = CHAIN_RETURN_PACKET_ERROR;
@@ -91,10 +79,8 @@ chain_status_t ChainJoystick::setJoystickMappedRange(uint8_t id, uint16_t *mapBu
                                                      uint8_t *operationStatus, uint8_t saveToFlash,
                                                      unsigned long timeout)
 {
-    // 指令处理模板
     chain_status_t status = CHAIN_OK;
     if (acquireMutex()) {
-        // 这里发送数据
         memset(cmdBuffer, 0, cmdBufferSize);
         cmdBufferSize = 0;
         for (uint8_t i = 0; i < 8; i++) {
@@ -104,11 +90,9 @@ chain_status_t ChainJoystick::setJoystickMappedRange(uint8_t id, uint16_t *mapBu
         cmdBuffer[cmdBufferSize++] = saveToFlash;
         sendPacket(id, CHAIN_JOYSTICK_SET_ADC_XY_MAPPED_RANGE, cmdBuffer, cmdBufferSize);
 
-        // 这里等待接收数据
         if (waitForData(id, CHAIN_JOYSTICK_SET_ADC_XY_MAPPED_RANGE, timeout)) {
-            if (checkPacket(reinterpret_cast<const uint8_t *>(cmdReturnBuffer), cmdReturnBufferSize)) {
-                // 这里传参要返回的数据
-                *operationStatus = cmdReturnBuffer[6];
+            if (checkPacket(reinterpret_cast<const uint8_t *>(returnPacket), returnPacketSize)) {
+                *operationStatus = returnPacket[6];
             } else {
                 status = CHAIN_RETURN_PACKET_ERROR;
             }
@@ -124,20 +108,16 @@ chain_status_t ChainJoystick::setJoystickMappedRange(uint8_t id, uint16_t *mapBu
 chain_status_t ChainJoystick::getJoystickMappedInt16Value(uint8_t id, int16_t *xMapAdcValue, int16_t *yMapAdcValue,
                                                           unsigned long timeout)
 {
-    // 指令处理模板
     chain_status_t status = CHAIN_OK;
     if (acquireMutex()) {
-        // 这里发送数据
         memset(cmdBuffer, 0, cmdBufferSize);
         cmdBufferSize = 0;
         sendPacket(id, CHAIN_JOYSTICK_GET_ADC_XY_MAPPED_INT16_VALUE, cmdBuffer, cmdBufferSize);
 
-        // 这里等待接收数据
         if (waitForData(id, CHAIN_JOYSTICK_GET_ADC_XY_MAPPED_INT16_VALUE, timeout)) {
-            if (checkPacket(reinterpret_cast<const uint8_t *>(cmdReturnBuffer), cmdReturnBufferSize)) {
-                // 这里传参要返回的数据
-                *xMapAdcValue = (cmdReturnBuffer[7] << 8) | cmdReturnBuffer[6];
-                *yMapAdcValue = (cmdReturnBuffer[9] << 8) | cmdReturnBuffer[8];
+            if (checkPacket(reinterpret_cast<const uint8_t *>(returnPacket), returnPacketSize)) {
+                *xMapAdcValue = (returnPacket[7] << 8) | returnPacket[6];
+                *yMapAdcValue = (returnPacket[9] << 8) | returnPacket[8];
             } else {
                 status = CHAIN_RETURN_PACKET_ERROR;
             }
@@ -153,20 +133,16 @@ chain_status_t ChainJoystick::getJoystickMappedInt16Value(uint8_t id, int16_t *x
 chain_status_t ChainJoystick::getJoystickMappedInt8Value(uint8_t id, int8_t *xMapAdcValue, int8_t *yMapAdcValue,
                                                          unsigned long timeout)
 {
-    // 指令处理模板
     chain_status_t status = CHAIN_OK;
     if (acquireMutex()) {
-        // 这里发送数据
         memset(cmdBuffer, 0, cmdBufferSize);
         cmdBufferSize = 0;
         sendPacket(id, CHAIN_JOYSTICK_GET_ADC_XY_MAPPED_INT8_VALUE, cmdBuffer, cmdBufferSize);
 
-        // 这里等待接收数据
         if (waitForData(id, CHAIN_JOYSTICK_GET_ADC_XY_MAPPED_INT8_VALUE, timeout)) {
-            if (checkPacket(reinterpret_cast<const uint8_t *>(cmdReturnBuffer), cmdReturnBufferSize)) {
-                // 这里传参要返回的数据
-                *xMapAdcValue = cmdReturnBuffer[6];
-                *yMapAdcValue = cmdReturnBuffer[7];
+            if (checkPacket(reinterpret_cast<const uint8_t *>(returnPacket), returnPacketSize)) {
+                *xMapAdcValue = returnPacket[6];
+                *yMapAdcValue = returnPacket[7];
             } else {
                 status = CHAIN_RETURN_PACKET_ERROR;
             }
@@ -182,5 +158,17 @@ chain_status_t ChainJoystick::getJoystickMappedInt8Value(uint8_t id, int8_t *xMa
 
 uint16_t ChainJoystick::getJoystickTypeCode(void)
 {
-    return CHAIN_JOYSTICK_TYPE_CODE;
+    return CHAIN_JOYSTICK_DEVICE_TYPE_CODE;
+}
+
+bool ChainJoystick::getJoystickButtonPressStatus(uint8_t id)
+{
+    bool findStatus = 0;
+    record_info_t result;
+    processIncomingData();
+    findStatus = findRecord(&recordList, id, &result);
+    if (findStatus == true && result.type == CHAIN_JOYSTICK_BUTTON_PRESS_TYPE_CODE) {
+        return true;
+    }
+    return false;
 }

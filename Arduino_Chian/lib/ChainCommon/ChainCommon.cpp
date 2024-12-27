@@ -10,8 +10,6 @@
  * @brief Mutex semaphore to control access.
  */
 static bool mutexLocked = false;
-
-// 锁定互斥量
 bool ChainCommon::acquireMutex(void)
 {
     if (!mutexLocked) {
@@ -20,8 +18,6 @@ bool ChainCommon::acquireMutex(void)
     }
     return false;
 }
-
-// 释放互斥量
 void ChainCommon::releaseMutex(void)
 {
     mutexLocked = false;
@@ -33,33 +29,6 @@ void ChainCommon::begin(HardwareSerial *serial, unsigned long baud, int8_t rxPin
     serialPort = serial;
     serialPort->begin(baud, SERIAL_8N1, rxPin, txPin, invert, timeout_ms, rxfifo_full_thrhd);
 }
-// 检查数据包头
-bool ChainCommon::checkPacketHeader(const uint8_t *buffer, uint16_t size)
-{
-    return (size >= 2 && buffer[0] == PACK_HEAD_HIGH && buffer[1] == PACK_HEAD_LOW);
-}
-
-// 检查数据包尾
-bool ChainCommon::checkPacketTail(const uint8_t *buffer, uint16_t size)
-{
-    return (size >= 2 && buffer[size - 1] == PACK_END_LOW && buffer[size - 2] == PACK_END_HIGH);
-}
-
-// 检查数据包的 CRC 校验
-bool ChainCommon::checkCRC(const uint8_t *buffer, uint16_t size)
-{
-    uint8_t crc8 = calculateCRC(buffer, size);
-    return (crc8 == buffer[size - 3]);
-}
-
-// 检查数据包的长度
-bool ChainCommon::checkPacketLength(const uint8_t *buffer, uint16_t size)
-{
-    uint16_t length = (uint16_t)(buffer[3] << 8) | buffer[2];
-    return ((length + 6) == size);
-}
-
-// 计算 CRC 校验值
 uint8_t ChainCommon::calculateCRC(const uint8_t *buffer, uint16_t size)
 {
     uint8_t crc8 = 0;
@@ -69,20 +38,41 @@ uint8_t ChainCommon::calculateCRC(const uint8_t *buffer, uint16_t size)
     return crc8;
 }
 
-// 发送数据包
+bool ChainCommon::checkPacket(const uint8_t *buffer, uint16_t size)
+{
+    uint8_t crc8    = calculateCRC(buffer, size);
+    uint16_t length = (uint16_t)(buffer[3] << 8) | buffer[2] + 6;
+    if (size < PACK_SIZE_MIN) {
+        return false;
+    }
+    if (buffer[0] != PACK_HEAD_HIGH || buffer[1] != PACK_HEAD_LOW || buffer[size - 1] != PACK_END_LOW ||
+        buffer[size - 2] != PACK_END_HIGH) {
+        return false;
+    }
+    if (length != size) {
+        return false;
+    }
+    if (crc8 != buffer[size - 3]) {
+        return false;
+    }
+    return true;
+}
 void ChainCommon::sendPacket(uint16_t id, uint8_t cmd, const uint8_t *buffer, uint16_t size)
 {
-    memset(sendBuffer, 0, sendBufferSize);  // 清除缓冲
+    memset(sendBuffer, 0, sendBufferSize);
     uint8_t crc8     = 0;
     uint16_t cmdSize = size + 3;
     sendBufferSize   = size + 9;
-    sendBuffer[0]    = PACK_HEAD_HIGH;
-    sendBuffer[1]    = PACK_HEAD_LOW;
-    sendBuffer[2]    = cmdSize & 0xFF;
-    sendBuffer[3]    = (cmdSize >> 8) & 0xFF;
-    sendBuffer[4]    = id;
-    sendBuffer[5]    = cmd;
+
+    sendBuffer[0] = PACK_HEAD_HIGH;
+    sendBuffer[1] = PACK_HEAD_LOW;
+    sendBuffer[2] = cmdSize & 0xFF;
+    sendBuffer[3] = (cmdSize >> 8) & 0xFF;
+    sendBuffer[4] = id;
+    sendBuffer[5] = cmd;
+
     memcpy(sendBuffer + 6, buffer, size);
+
     crc8                           = calculateCRC(sendBuffer, sendBufferSize);
     sendBuffer[sendBufferSize - 3] = crc8;
     sendBuffer[sendBufferSize - 2] = PACK_END_HIGH;
@@ -92,14 +82,59 @@ void ChainCommon::sendPacket(uint16_t id, uint8_t cmd, const uint8_t *buffer, ui
     }
 }
 
-// 辅助函数：处理包的提取、头尾检查和数据清理
-bool ChainCommon::processPacketData(uint16_t id, uint8_t cmd)
+bool ChainCommon::addRecord(record_list_t *list, record_info_t info)
+{
+    node_t *newNode = (node_t *)malloc(sizeof(node_t));
+    if (!newNode) {
+        return false;
+    }
+    newNode->data = info;
+    newNode->next = NULL;
+
+    if (list->head == NULL) {
+        list->head = newNode;
+    } else {
+        node_t *current = list->head;
+        while (current->next != NULL) {
+            current = current->next;
+        }
+        current->next = newNode;
+    }
+    list->count++;
+    return true;
+}
+
+bool ChainCommon::findRecord(record_list_t *list, uint8_t id, record_info_t *result)
+{
+    node_t *current  = list->head;
+    node_t *previous = NULL;
+
+    while (current) {
+        if (current->data.id == id) {
+            if (result) {
+                *result = current->data;
+            }
+
+            if (previous) {
+                previous->next = current->next;
+            } else {
+                list->head = current->next;
+            }
+
+            free(current);
+            list->count--;
+            return true;
+        }
+        previous = current;
+        current  = current->next;
+    }
+    return false;
+}
+bool ChainCommon::processBufferData(uint16_t id, uint8_t cmd)
 {
     uint16_t startIndex = 0;
-    bool packetFound    = false;  // 标记是否找到符合条件的数据包
-
+    bool packetFound    = false;
     while (startIndex < receiveBufferSize) {
-        // 找到数据包的开始标志 0xAA 0x55
         if (receiveBuffer[startIndex] == 0xAA && receiveBuffer[startIndex + 1] == 0x55) {
             // 数据包的长度字节
             if (startIndex + 3 >= receiveBufferSize) {
@@ -122,21 +157,21 @@ bool ChainCommon::processPacketData(uint16_t id, uint8_t cmd)
                 uint16_t remainingSize = receiveBufferSize - packetSize;
                 receiveBufferSize      = remainingSize;
 
-                uint8_t packetId    = packetData[4];
-                uint8_t packetCmd   = packetData[5];
-                uint8_t packetData6 = packetData[6];
+                uint8_t packetId  = packetData[4];
+                uint8_t packetCmd = packetData[5];
 
                 if (packetId == id && packetCmd == cmd) {
-                    memcpy(cmdReturnBuffer, packetData, packetSize);
-                    cmdReturnBufferSize = packetSize;
-                    packetFound         = true;  // 标记找到符合条件的数据包
+                    memcpy(returnPacket, packetData, packetSize);
+                    returnPacketSize = packetSize;
+                    packetFound      = true;  // 标记找到符合条件的数据包
                 } else if (packetCmd == CHAIN_ENUM_PLEASE &&
-                           checkCRC(reinterpret_cast<const uint8_t *>(cmdReturnBuffer), cmdReturnBufferSize)) {
-                    enumPleaseCount++;  // 计数器增加
-                } else if (packetCmd == 0x40 && packetData6 == 0x11 &&
-                           checkCRC(reinterpret_cast<const uint8_t *>(cmdReturnBuffer), cmdReturnBufferSize)) {
-                    if (keyBufferSize < KEY_BUFFER_SIZE) {
-                        keyBuffer[keyBufferSize++] = packetId;
+                           checkPacket(reinterpret_cast<const uint8_t *>(returnPacket), returnPacketSize)) {
+                    enumPleaseCount++;  // 枚举
+                } else if (packetCmd == 0xE0 &&
+                           checkPacket(reinterpret_cast<const uint8_t *>(returnPacket), returnPacketSize)) {
+                    if (recordList.count < ACTIVE_PACKET_RECORD_SIZE) {
+                        addRecord(&recordList, (record_info_t){packetId, static_cast<uint16_t>((packetData[7] << 8) |
+                                                                                               packetData[6])});
                     }
                 }
 
@@ -162,59 +197,38 @@ bool ChainCommon::processPacketData(uint16_t id, uint8_t cmd)
     receiveBufferSize = 0;                            // 重置缓冲区大小
     return packetFound;
 }
-bool ChainCommon::processPacket(uint16_t id, uint8_t cmd)
+void ChainCommon::processIncomingData(void)
 {
-    return processPacketData(cmd, id);
-}
-void ChainCommon::processIncomingPacket(void)
-{
-    if (available() > 0) {
-        receive();
-        processPacketData();
+    if (available() > 0) {    // 检测缓冲区是否有数据
+        readBuffer();         // 读取缓冲区数据
+        processBufferData();  // 处理缓冲区数据
     }
-}
-bool ChainCommon::checkPacket(const uint8_t *buffer, uint16_t size)
-{
-    return (checkPacketHeader(buffer, size) && checkPacketTail(buffer, size) && checkCRC(buffer, size) &&
-            checkPacketLength(buffer, size));
 }
 
 bool ChainCommon::available(void)
 {
     return serialPort->available() > 0;
 }
-// 取出数据
-void ChainCommon::receive(void)
+
+void ChainCommon::readBuffer(void)
 {
     unsigned long startTime = millis();
 
-    while (true)  // 无限循环
-    {
-        // 检查超时
-        if (millis() - startTime >= TIMEOUT_MS) {
-            break;  // 超时后退出循环
-        }
-
-        // 检查是否有可用数据
-        while (available()) {
-            if (receiveBufferSize < sizeof(receiveBuffer)) {  // 防止越界
-                receiveBuffer[receiveBufferSize++] = serialPort->read();
-                startTime                          = millis();
-            } else {
-                break;
-            }
+    while (millis() - startTime < TIMEOUT_MS) {
+        if (available() && receiveBufferSize < RECEIVE_BUFFER_SIZE) {
+            receiveBuffer[receiveBufferSize++] = serialPort->read();
+            startTime                          = millis();
         }
     }
 }
 
 bool ChainCommon::waitForData(uint16_t id, uint8_t cmd, uint32_t timeout)
 {
-    uint32_t startTime = millis();  // 获取当前时间
+    uint32_t startTime = millis();
     while (millis() - startTime < timeout) {
-        // 检查是否收到数据
-        if (available()) {
-            receive();
-            bool status = processPacket(cmd, id);
+        if (available()) {                             // 检测缓冲区是否有数据
+            readBuffer();                              // 读取缓冲区数据
+            bool status = processBufferData(id, cmd);  // 处理缓冲区数据
             if (status) {
                 return true;
             }
@@ -226,41 +240,25 @@ bool ChainCommon::waitForData(uint16_t id, uint8_t cmd, uint32_t timeout)
 
 uint16_t ChainCommon::getEnumPleaseNum(void)
 {
+    processIncomingData();
     uint16_t temp   = enumPleaseCount;
     enumPleaseCount = 0;
     return temp;
 }
 
-void ChainCommon::getKeyBuffer(uint16_t *outBuffer, uint16_t *length)
+chain_status_t ChainCommon::setRGBValue(uint16_t id, rgb_color_t rgb, uint8_t *operationStatus, unsigned long timeout)
 {
-    *length = keyBufferSize;  // 返回当前keyBuffer的有效数据长度
-
-    // 复制keyBuffer的内容到outBuffer
-    memcpy(outBuffer, keyBuffer, keyBufferSize * sizeof(uint16_t));
-
-    // 清空keyBuffer
-    memset(keyBuffer, 0, KEY_BUFFER_SIZE);  // 清空keyBuffer数组
-    keyBufferSize = 0;                      // 重置keyBufferSize
-}
-
-chain_status_t ChainCommon::setRGBValue(uint16_t id, rgb_color rgb, uint8_t *operationStatus, unsigned long timeout)
-{
-    // 指令处理模板
     chain_status_t status = CHAIN_OK;
     if (acquireMutex()) {
-        // 这里发送数据
         memset(cmdBuffer, 0, cmdBufferSize);
         cmdBufferSize              = 0;
         cmdBuffer[cmdBufferSize++] = rgb.R;
         cmdBuffer[cmdBufferSize++] = rgb.G;
         cmdBuffer[cmdBufferSize++] = rgb.B;
         sendPacket(id, CHAIN_SET_RGB_VALUE, cmdBuffer, cmdBufferSize);
-
-        // 这里等待接收数据
         if (waitForData(id, CHAIN_SET_RGB_VALUE, timeout)) {
-            if (checkPacket(reinterpret_cast<const uint8_t *>(cmdReturnBuffer), cmdReturnBufferSize)) {
-                // 这里传参要返回的数据
-                *operationStatus = cmdReturnBuffer[6];
+            if (checkPacket(reinterpret_cast<const uint8_t *>(returnPacket), returnPacketSize)) {
+                *operationStatus = returnPacket[6];
             } else {
                 status = CHAIN_RETURN_PACKET_ERROR;
             }
@@ -273,24 +271,18 @@ chain_status_t ChainCommon::setRGBValue(uint16_t id, rgb_color rgb, uint8_t *ope
     }
     return status;
 }
-chain_status_t ChainCommon::getRGBValue(uint16_t id, rgb_color *rgb, unsigned long timeout)
+chain_status_t ChainCommon::getRGBValue(uint16_t id, rgb_color_t *rgb, unsigned long timeout)
 {
-    // 指令处理模板
     chain_status_t status = CHAIN_OK;
     if (acquireMutex()) {
-        // 这里发送数据
         memset(cmdBuffer, 0, cmdBufferSize);
         cmdBufferSize = 0;
         sendPacket(id, CHAIN_GET_RGB_VALUE, cmdBuffer, cmdBufferSize);
-
-        // 这里等待接收数据
         if (waitForData(id, CHAIN_GET_RGB_VALUE, timeout)) {
-            if (checkPacket(reinterpret_cast<const uint8_t *>(cmdReturnBuffer), cmdReturnBufferSize)) {
-                // 这里传参要返回的数据
-                // *bootloaderVersion = cmdReturnBuffer[6];
-                rgb->R = cmdReturnBuffer[6];
-                rgb->G = cmdReturnBuffer[7];
-                rgb->B = cmdReturnBuffer[6];
+            if (checkPacket(reinterpret_cast<const uint8_t *>(returnPacket), returnPacketSize)) {
+                rgb->R = returnPacket[6];
+                rgb->G = returnPacket[7];
+                rgb->B = returnPacket[6];
             } else {
                 status = CHAIN_RETURN_PACKET_ERROR;
             }
@@ -306,20 +298,20 @@ chain_status_t ChainCommon::getRGBValue(uint16_t id, rgb_color *rgb, unsigned lo
 chain_status_t ChainCommon::setRGBLight(uint16_t id, uint8_t rgbBrightness, uint8_t *operationStatus,
                                         uint8_t saveToFlash, unsigned long timeout)
 {
-    // 指令处理模板
     chain_status_t status = CHAIN_OK;
+    if (rgbBrightness > 100) {
+        status = CHAIN_PARAMETER_ERROR;
+        return status;
+    }
     if (acquireMutex()) {
-        // 这里发送数据
         memset(cmdBuffer, 0, cmdBufferSize);
         cmdBufferSize              = 0;
         cmdBuffer[cmdBufferSize++] = rgbBrightness;
         cmdBuffer[cmdBufferSize++] = saveToFlash;
         sendPacket(id, CHAIN_SET_RGB_LIGHT, cmdBuffer, cmdBufferSize);
-
-        // 这里等待接收数据
         if (waitForData(id, CHAIN_SET_RGB_LIGHT, timeout)) {
-            if (checkPacket(reinterpret_cast<const uint8_t *>(cmdReturnBuffer), cmdReturnBufferSize)) {
-                *operationStatus = cmdReturnBuffer[6];
+            if (checkPacket(reinterpret_cast<const uint8_t *>(returnPacket), returnPacketSize)) {
+                *operationStatus = returnPacket[6];
             } else {
                 status = CHAIN_RETURN_PACKET_ERROR;
             }
@@ -334,18 +326,14 @@ chain_status_t ChainCommon::setRGBLight(uint16_t id, uint8_t rgbBrightness, uint
 }
 chain_status_t ChainCommon::getRGBLight(uint16_t id, uint8_t *rgbBrightness, unsigned long timeout)
 {
-    // 指令处理模板
     chain_status_t status = CHAIN_OK;
     if (acquireMutex()) {
-        // 这里发送数据
         memset(cmdBuffer, 0, cmdBufferSize);
         cmdBufferSize = 0;
         sendPacket(id, CHAIN_GET_RGB_LIGHT, cmdBuffer, cmdBufferSize);
-        // 这里等待接收数据
         if (waitForData(id, CHAIN_GET_RGB_LIGHT, timeout)) {
-            if (checkPacket(reinterpret_cast<const uint8_t *>(cmdReturnBuffer), cmdReturnBufferSize)) {
-                // 这里传参要返回的数据
-                *rgbBrightness = cmdReturnBuffer[6];
+            if (checkPacket(reinterpret_cast<const uint8_t *>(returnPacket), returnPacketSize)) {
+                *rgbBrightness = returnPacket[6];
             } else {
                 status = CHAIN_RETURN_PACKET_ERROR;
             }
@@ -367,8 +355,8 @@ chain_status_t ChainCommon::getBootloaderVersion(uint16_t id, uint8_t *bootloade
         sendPacket(id, CHAIN_GET_BOOTLOADER_VERSION, cmdBuffer, cmdBufferSize);
 
         if (waitForData(id, CHAIN_GET_BOOTLOADER_VERSION, timeout)) {
-            if (checkPacket(reinterpret_cast<const uint8_t *>(cmdReturnBuffer), cmdReturnBufferSize)) {
-                *bootloaderVersion = cmdReturnBuffer[6];
+            if (checkPacket(reinterpret_cast<const uint8_t *>(returnPacket), returnPacketSize)) {
+                *bootloaderVersion = returnPacket[6];
             } else {
                 status = CHAIN_RETURN_PACKET_ERROR;
             }
@@ -385,16 +373,12 @@ chain_status_t ChainCommon::getFirmwareVersion(uint16_t id, uint8_t *firmwareVer
 {
     chain_status_t status = CHAIN_OK;
     if (acquireMutex()) {
-        // 这里发送数据
         memset(cmdBuffer, 0, cmdBufferSize);
         cmdBufferSize = 0;
         sendPacket(id, CHAIN_GET_VERSION_DEVICE, cmdBuffer, cmdBufferSize);
-
-        // 这里等待接收数据
         if (waitForData(id, CHAIN_GET_VERSION_DEVICE, timeout)) {
-            if (checkPacket(reinterpret_cast<const uint8_t *>(cmdReturnBuffer), cmdReturnBufferSize)) {
-                // 这里传参要返回的数据
-                *firmwareVersion = cmdReturnBuffer[6];
+            if (checkPacket(reinterpret_cast<const uint8_t *>(returnPacket), returnPacketSize)) {
+                *firmwareVersion = returnPacket[6];
             } else {
                 status = CHAIN_RETURN_PACKET_ERROR;
             }
@@ -411,16 +395,12 @@ chain_status_t ChainCommon::getDeviceType(uint16_t id, uint16_t *deviceType, uns
 {
     chain_status_t status = CHAIN_OK;
     if (acquireMutex()) {
-        // 这里发送数据
         memset(cmdBuffer, 0, cmdBufferSize);
         cmdBufferSize = 0;
         sendPacket(id, CHAIN_GET_DEVICE_TYPE, cmdBuffer, cmdBufferSize);
-
-        // 这里等待接收数据
         if (waitForData(id, CHAIN_GET_DEVICE_TYPE, timeout)) {
-            if (checkPacket(reinterpret_cast<const uint8_t *>(cmdReturnBuffer), cmdReturnBufferSize)) {
-                // 这里传参要返回的数据
-                *deviceType = (cmdReturnBuffer[7] << 8) | cmdReturnBuffer[6];
+            if (checkPacket(reinterpret_cast<const uint8_t *>(returnPacket), returnPacketSize)) {
+                *deviceType = (returnPacket[7] << 8) | returnPacket[6];
             } else {
                 status = CHAIN_RETURN_PACKET_ERROR;
             }
@@ -437,17 +417,13 @@ chain_status_t ChainCommon::getDeviceNum(uint16_t *deviceNum, unsigned long time
 {
     chain_status_t status = CHAIN_OK;
     if (acquireMutex()) {
-        // 这里发送数据
         memset(cmdBuffer, 0, cmdBufferSize);
         cmdBufferSize              = 0;
         cmdBuffer[cmdBufferSize++] = 0x00;
         sendPacket(0xFF, CHAIN_ENUM, cmdBuffer, cmdBufferSize);
-
-        // 这里等待接收数据
         if (waitForData(0xFF, CHAIN_ENUM, timeout)) {
-            if (checkPacket(reinterpret_cast<const uint8_t *>(cmdReturnBuffer), cmdReturnBufferSize)) {
-                // 这里传参要返回的数据
-                *deviceNum = cmdReturnBuffer[6];
+            if (checkPacket(reinterpret_cast<const uint8_t *>(returnPacket), returnPacketSize)) {
+                *deviceNum = returnPacket[6];
             } else {
                 status = CHAIN_RETURN_PACKET_ERROR;
             }
@@ -461,40 +437,33 @@ chain_status_t ChainCommon::getDeviceNum(uint16_t *deviceNum, unsigned long time
     return status;
 }
 
-// 检查是否有设备连接
-// 根据传参的次数，询问是否有设备连接
-chain_status_t ChainCommon::isDeviceConnected(uint8_t maxRetries, unsigned long timeout)
+bool ChainCommon::isDeviceConnected(uint8_t maxRetries, unsigned long timeout)
 {
-    chain_status_t status = CHAIN_OK;
-    int retryCount        = 0;
+    bool status    = true;
+    int retryCount = 0;
     if (acquireMutex()) {
         while (retryCount < maxRetries) {
-            // 发送数据包
             memset(cmdBuffer, 0, cmdBufferSize);
             cmdBufferSize = 0;
             sendPacket(0xFF, CHAIN_HEARTBEAT, cmdBuffer, cmdBufferSize);
-
-            // 等待接收数据
             if (waitForData(0xFF, CHAIN_HEARTBEAT, timeout)) {
-                // 校验数据包
-                if (checkPacket(reinterpret_cast<const uint8_t *>(cmdReturnBuffer), cmdReturnBufferSize)) {
+                if (checkPacket(reinterpret_cast<const uint8_t *>(returnPacket), returnPacketSize)) {
                     break;
                 }
             }
-            retryCount++;  // 增加重试次数
+            retryCount++;
         }
         if (retryCount == maxRetries) {
-            status = CHAIN_TIMEOUT;
+            status = false;
         }
         releaseMutex();
     } else {
-        status = CHAIN_BUSY;
+        status = false;
     }
     return status;
 }
 
-// 获取连接设备的类型
-chain_status_t ChainCommon::getDeviceList(device_list_t *list, unsigned long timeout)
+bool ChainCommon::getDeviceList(device_list_t *list, unsigned long timeout)
 {
     chain_status_t status   = CHAIN_OK;
     unsigned long startTime = millis();
@@ -502,8 +471,13 @@ chain_status_t ChainCommon::getDeviceList(device_list_t *list, unsigned long tim
         list->devices[i].id = i + 1;
         status              = getDeviceType(i + 1, &list->devices[i].device_type, timeout);
         if (status != CHAIN_OK) {
-            break;
+            return false;
         }
     }
-    return status;
+    return true;
+}
+
+void ChainCommon::debugPrint(void)
+{
+    Serial.printf("record :%d\r\n", recordList.count);
 }

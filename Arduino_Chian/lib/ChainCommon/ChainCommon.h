@@ -15,24 +15,19 @@
 #define TIMEOUT_MS (1)
 
 /**
- * @brief Buffer size for receiving data.
+ * @brief Maximum size of the receive buffer.
  */
 #define RECEIVE_BUFFER_SIZE (1024)
 
 /**
- * @brief Buffer size for sending data.
+ * @brief Maximum size of the send buffer.
  */
 #define SEND_BUFFER_SIZE (256)
 
 /**
- * @brief Buffer size for command storage.
+ * @brief Maximum buffer size for command storage.
  */
 #define CMD_BUFFER_SIZE (256)
-
-/**
- * @brief Buffer size for storing key states.
- */
-#define KEY_BUFFER_SIZE (16)
 
 /**
  * @brief High byte of the data packet header.
@@ -55,9 +50,15 @@
 #define PACK_END_LOW (0xAA)
 
 /**
+ * @brief Minimum size of the packet.
+ */
+#define PACK_SIZE_MIN (0x09)
+
+/**
  * @brief Macro to indicate not saving to flash memory.
  */
 #define SAVE_TO_FLASH_DISABLE (0)
+
 /**
  * @brief Macro to indicate saving to flash memory.
  */
@@ -65,10 +66,13 @@
 
 /**
  * @brief Maximum brightness level for RGB light.
- *
- * This macro defines the maximum brightness level for the RGB light, which is 100.
  */
 #define RGB_MAX_BRIGHTNESS (100)
+
+/**
+ * @brief Maximum number of active packets that can be recorded.
+ */
+#define ACTIVE_PACKET_RECORD_SIZE (32)
 
 /**
  * @brief Status codes for chain command operations.
@@ -109,14 +113,14 @@ typedef enum {
 typedef struct {
     uint16_t id;          /**< Device ID. */
     uint16_t device_type; /**< Device type. */
-} device_t;
+} device_info_t;
 
 /**
  * @brief List of devices structure.
  */
 typedef struct {
-    uint16_t count;    /**< Number of devices. */
-    device_t *devices; /**< Array of devices. */
+    uint16_t count;         /**< Number of devices. */
+    device_info_t *devices; /**< Array of devices. */
 } device_list_t;
 
 /**
@@ -126,17 +130,78 @@ typedef struct {
     uint8_t R; /**< Red component of the color. */
     uint8_t G; /**< Green component of the color. */
     uint8_t B; /**< Blue component of the color. */
-} rgb_color;
+} rgb_color_t;
+
+/**
+ * @brief Structure to store ID and type information of a record.
+ *
+ * This structure contains the ID and type of a record, not the record content.
+ */
+typedef struct {
+    uint8_t id;    /**< ID of the record. */
+    uint16_t type; /**< Type of the record. */
+} record_info_t;
+
+/**
+ * @brief Structure representing a node in the linked list of record info.
+ *
+ * This node stores record info (ID and type) and a pointer to the next node.
+ */
+typedef struct node {
+    record_info_t data; /**< Data (ID and type) of the record. */
+    struct node *next;  /**< Pointer to the next node in the list. */
+} node_t;
+
+/**
+ * @brief Structure for the list of record info.
+ *
+ * This structure represents a linked list of record info, with a pointer to the head node
+ * and the count of nodes in the list.
+ */
+typedef struct {
+    node_t *head;  /**< Pointer to the first node in the list (head of the list). */
+    uint8_t count; /**< Number of nodes in the list. */
+} record_list_t;
 
 class ChainCommon {
 public:
+    void debugPrint(void);
     // Command buffer
     uint8_t cmdBuffer[CMD_BUFFER_SIZE] = {0};  // Buffer used to store commands that are to be sent.
     uint16_t cmdBufferSize             = 0;    // Current size of the command buffer (number of commands stored).
 
     // Returned command buffer
-    uint8_t cmdReturnBuffer[CMD_BUFFER_SIZE] = {0};  // Buffer used to store the returned command data after execution.
-    uint16_t cmdReturnBufferSize = 0;  // Current size of the returned command buffer (number of returned data bytes).
+    uint8_t returnPacket[CMD_BUFFER_SIZE] = {0};  // Buffer used to store the returned command data after execution.
+    uint16_t returnPacketSize = 0;  // Current size of the returned command buffer (number of returned data bytes).
+
+    record_list_t recordList = {
+        NULL, 0};  // Initialize an empty record_list_t with the head pointer set to NULL and count set to 0
+
+    /**
+     * @brief Adds a new record to the linked list.
+     *
+     * This function uses tail insertion to add a new record at the end of the list.
+     *
+     * @param list A pointer to the record_list_t.
+     * @param info The data to be added, of type record_info_t.
+     *
+     * @return Returns true if the record was successfully added, otherwise returns false.
+     */
+    bool addRecord(record_list_t *list, record_info_t info);
+
+    /**
+     * @brief Finds and deletes a node with the specified ID in the list, and returns its data.
+     *
+     * This function traverses the list to find the node with the specified ID. If found, it deletes the node
+     * from the list and stores the node's data in the result pointer.
+     *
+     * @param list A pointer to the record_list_t.
+     * @param id The ID of the node to find and delete.
+     * @param result A pointer to store the found data.
+     *
+     * @return Returns true if the node was found and deleted, otherwise returns false.
+     */
+    bool findRecord(record_list_t *list, uint8_t id, record_info_t *result);
 
     /**
      * @brief Acquires the mutex to ensure exclusive access.
@@ -191,30 +256,16 @@ public:
     void sendPacket(uint16_t id, uint8_t cmd, const uint8_t *buffer, uint16_t size);
 
     /**
-     * @brief Extracts a specific data packet based on ID and command.
+     * @brief Queries and processes data packets actively sent by slave devices.
      *
-     * This function extracts the specified data packet from the buffer using the provided
-     * device ID and command. It validates the packet's content but does not process it.
-     * The packet is extracted and remains in the buffer for further processing.
-     *
-     * @param id Device position in the link (starting from 1).
-     * @param cmd Command identifier for the specific packet to be extracted.
-     *
-     * @return Returns true if the packet is successfully extracted, false otherwise.
-     */
-    bool processPacket(uint16_t id, uint8_t cmd);
-
-    /**
-     * @brief Processes actively sent incoming data packets.
-     *
-     * This function handles the processing of data packets that are actively sent
-     * by other devices. It checks the validity of the incoming packet and processes
-     * it based on the packet's contents and command. After processing, the packet is
-     * cleared from the buffer to prepare for the next incoming data.
+     * This function checks whether the buffer contains data packets actively sent
+     * by slave devices. If such packets are found, it processes them accordingly.
+     * After processing, the handled packets are cleared from the buffer to prepare
+     * for new incoming data.
      *
      * @return None
      */
-    void processIncomingPacket(void);
+    void processIncomingData(void);
 
     /**
      * @brief Checks the validity of the received data packet.
@@ -231,14 +282,14 @@ public:
     bool checkPacket(const uint8_t *buffer, uint16_t size);
 
     /**
-     * @brief Waits for a specific data packet from the device at the specified position in the chain.
+     * @brief Waits to receive the response data packet from the specified device.
      *
-     * This function waits for a data packet from the device at the given position in the chain,
-     * based on the specified command byte. It will wait until the packet is received or the
-     * timeout duration is exceeded.
+     * This function waits for a response data packet from the device at the specified position in the chain,
+     * based on the specified command byte. It will wait until the matching packet is received or the timeout
+     * duration is exceeded.
      *
      * @param id Device position in the chain (starting from 1).
-     * @param cmd Command byte to specify the expected data packet.
+     * @param cmd Command byte to specify the expected response packet.
      * @param timeout Maximum time to wait for the packet in milliseconds.
      *
      * @return Returns `true` if the packet is received within the timeout period, `false` otherwise.
@@ -258,7 +309,7 @@ public:
      *
      * @return Operation status (e.g., CHAIN_OK, CHAIN_BUSY, etc.).
      */
-    chain_status_t setRGBValue(uint16_t id, rgb_color rgb, uint8_t *operationStatus, unsigned long timeout = 100);
+    chain_status_t setRGBValue(uint16_t id, rgb_color_t rgb, uint8_t *operationStatus, unsigned long timeout = 100);
 
     /**
      * @brief Gets the RGB value of the device at a specific position in the chain.
@@ -272,7 +323,7 @@ public:
      *
      * @return Operation status (e.g., CHAIN_OK, CHAIN_BUSY, etc.).
      */
-    chain_status_t getRGBValue(uint16_t id, rgb_color *rgb, unsigned long timeout = 100);
+    chain_status_t getRGBValue(uint16_t id, rgb_color_t *rgb, unsigned long timeout = 100);
 
     /**
      * @brief Sets the RGB light brightness for the device at a specific position in the chain.
@@ -363,27 +414,28 @@ public:
      * This function checks the connection status of the device by attempting to communicate
      * with it a specified number of times (maxRetries). It waits for a response within a
      * given timeout period. If the device responds successfully within the timeout and retry
-     * limit, it is considered connected.
+     * limit, it is considered connected, and the function returns `true`; otherwise, it returns `false`.
      *
      * @param maxRetries The maximum number of retry attempts to check the device connection (default is 1).
      * @param timeout The timeout duration in milliseconds for each retry (default is 10ms).
      *
-     * @return The operation status (e.g., CHAIN_OK, CHAIN_TIMEOUT, etc.).
+     * @return Returns `true` if the device is successfully connected, otherwise returns `false`.
      */
-    chain_status_t isDeviceConnected(uint8_t maxRetries = 1, unsigned long timeout = 10);
+    bool isDeviceConnected(uint8_t maxRetries = 1, unsigned long timeout = 10);
 
     /**
      * @brief Retrieves the list of connected devices.
      *
      * This function retrieves a list of all connected devices in the chain. It stores the list
      * of devices in the provided device_list_t structure, including device IDs and types.
+     * If the device list is successfully retrieved, the function returns `true`; otherwise, it returns `false`.
      *
      * @param list Pointer to a device_list_t structure where the list of devices will be stored.
      * @param timeout The timeout duration in milliseconds for retrieving the device list (default is 200ms).
      *
-     * @return The operation status (e.g., CHAIN_OK, CHAIN_BUSY, etc.).
+     * @return Returns `true` if the device list is successfully retrieved, otherwise returns `false`.
      */
-    chain_status_t getDeviceList(device_list_t *list, unsigned long timeout = 200);
+    bool getDeviceList(device_list_t *list, unsigned long timeout = 200);
 
     /**
      * @brief Retrieves the number of recorded 'Enum Please' packets.
@@ -395,18 +447,6 @@ public:
      * @return The number of recorded 'Enum Please' packets.
      */
     uint16_t getEnumPleaseNum(void);
-
-    /**
-     * @brief Retrieves the recorded key buffer data.
-     *
-     * This function retrieves the key buffer data that has been recorded. The retrieved data
-     * is stored in the provided output buffer, and the length of the data is returned through
-     * the provided length parameter.
-     *
-     * @param outBuffer Pointer to the buffer where the recorded key data will be stored.
-     * @param length Pointer to the variable that will store the length of the recorded key buffer.
-     */
-    void getKeyBuffer(uint16_t *outBuffer, uint16_t *length);
 
 private:
     // Serial port instance
@@ -420,16 +460,47 @@ private:
     uint8_t sendBuffer[SEND_BUFFER_SIZE] = {0};  // Buffer used for storing data to be sent.
     uint16_t sendBufferSize              = 0;    // Length of the data stored in the send buffer.
 
-    // Key recording buffer
-    uint16_t keyBuffer[KEY_BUFFER_SIZE] = {0};  // Buffer for storing recorded key data.
-    uint16_t keyBufferSize              = 0;    // Length of the recorded key data stored in the key buffer.
-
     // Enum request count
     uint16_t enumPleaseCount = 0;  // The count of 'Enum Please' requests recorded.
 
-    void receive();
+    /**
+     * @brief Reads data from the serial receive buffer within a timeout period.
+     *
+     * This function reads incoming data from the serial port into the
+     * `receiveBuffer` until either the timeout (`TIMEOUT_MS`) expires or
+     * the buffer (`RECEIVE_BUFFER_SIZE`) reaches its limit. If new data is
+     * detected, the timeout counter resets to ensure all available data is read.
+     *
+     * @note This function assumes a non-blocking approach and relies on
+     *       the `available` method to check for incoming data.
+     */
+    void readBuffer(void);
+
+    /**
+     * @brief Checks if data is available in the receive buffer.
+     *
+     * This function checks whether there is any data available to be read from the serial port.
+     * It returns `true` if there is data in the buffer, otherwise returns `false`.
+     *
+     * @return `true` if data is available, `false` if no data is available.
+     */
     bool available();
-    bool processPacketData(uint16_t id = 0, uint8_t cmd = 0);
+
+    /**
+     * @brief Processes the data in the receive buffer and looks for complete packets.
+     *
+     * This function scans the receive buffer for packets starting with the header `0xAA 0x55`.
+     * It checks if the packet is complete (i.e., the length and checksum are correct),
+     * and if the packet matches the given `id` and `cmd`, it processes the packet accordingly.
+     * The function handles different types of packets, including enumerating and active packets.
+     *
+     * @param id The device ID to match in the packet.
+     * @param cmd The command code to match in the packet.
+     *
+     * @return `true` if a matching packet is found and processed, otherwise `false`.
+     */
+    bool processBufferData(uint16_t id = 0, uint8_t cmd = 0);
+
     /**
      * @brief Calculates the CRC for the given data.
      *
@@ -442,57 +513,6 @@ private:
      * @return The calculated CRC value.
      */
     uint8_t calculateCRC(const uint8_t *buffer, uint16_t size);
-
-    /**
-     * @brief Checks the validity of the packet header.
-     *
-     * This function verifies if the packet header is correct by checking the given buffer's header section.
-     * It ensures the packet follows the expected header format.
-     *
-     * @param buffer Pointer to the buffer containing the data to be checked.
-     * @param size Size of the data buffer.
-     *
-     * @return True if the header is valid, false otherwise.
-     */
-    bool checkPacketHeader(const uint8_t *buffer, uint16_t size);
-
-    /**
-     * @brief Checks the validity of the packet tail.
-     *
-     * This function verifies if the packet tail is correct by checking the given buffer's tail section.
-     * It ensures the packet ends with the expected tail format.
-     *
-     * @param buffer Pointer to the buffer containing the data to be checked.
-     * @param size Size of the data buffer.
-     *
-     * @return True if the tail is valid, false otherwise.
-     */
-    bool checkPacketTail(const uint8_t *buffer, uint16_t size);
-
-    /**
-     * @brief Verifies the packet length.
-     *
-     * This function checks if the packet length is correct by comparing the actual length in the buffer
-     * with the expected length based on the packet format.
-     *
-     * @param buffer Pointer to the buffer containing the data to be checked.
-     * @param size Size of the data buffer.
-     *
-     * @return True if the packet length is valid, false otherwise.
-     */
-    bool checkPacketLength(const uint8_t *buffer, uint16_t size);
-
-    /**
-     * @brief Checks the CRC of the packet.
-     *
-     * This function validates the integrity of the packet by calculating and verifying its CRC
-     *
-     * @param buffer Pointer to the buffer containing the data to be checked.
-     * @param size Size of the data buffer.
-     *
-     * @return True if the CRC is valid, false otherwise.
-     */
-    bool checkCRC(const uint8_t *buffer, uint16_t size);
 };
 
 #endif  // CHAIN_COMMON_H

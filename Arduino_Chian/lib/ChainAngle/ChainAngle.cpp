@@ -12,9 +12,9 @@ chain_status_t ChainAngle::getAngle12Adc(uint8_t id, uint16_t *adcValue, unsigne
 
         // 这里等待接收数据
         if (waitForData(id, CHAIN_ANGLE_GET_12ADC, timeout)) {
-            if (checkPacket(reinterpret_cast<const uint8_t *>(cmdReturnBuffer), cmdReturnBufferSize)) {
+            if (checkPacket(reinterpret_cast<const uint8_t *>(returnPacket), returnPacketSize)) {
                 // 这里传参要返回的数据
-                *adcValue = (cmdReturnBuffer[7] << 8) | cmdReturnBuffer[6];
+                *adcValue = (returnPacket[7] << 8) | returnPacket[6];
             } else {
                 status = CHAIN_RETURN_PACKET_ERROR;
             }
@@ -39,9 +39,9 @@ chain_status_t ChainAngle::getAngle8Adc(uint8_t id, uint8_t *adcValue, unsigned 
 
         // 这里等待接收数据
         if (waitForData(id, CHAIN_ANGLE_PGET_8ADC, timeout)) {
-            if (checkPacket(reinterpret_cast<const uint8_t *>(cmdReturnBuffer), cmdReturnBufferSize)) {
+            if (checkPacket(reinterpret_cast<const uint8_t *>(returnPacket), returnPacketSize)) {
                 // 这里传参要返回的数据
-                *adcValue = cmdReturnBuffer[6];
+                *adcValue = returnPacket[6];
             } else {
                 status = CHAIN_RETURN_PACKET_ERROR;
             }
@@ -69,9 +69,9 @@ chain_status_t ChainAngle::setAngleClockwise(uint8_t id, uint8_t direction, uint
 
         // 这里等待接收数据
         if (waitForData(id, CHAIN_ANGLE_SET_CLOCKWISE_STATUS, timeout)) {
-            if (checkPacket(reinterpret_cast<const uint8_t *>(cmdReturnBuffer), cmdReturnBufferSize)) {
+            if (checkPacket(reinterpret_cast<const uint8_t *>(returnPacket), returnPacketSize)) {
                 // 这里传参要返回的数据
-                *operationStatus = cmdReturnBuffer[6];
+                *operationStatus = returnPacket[6];
             } else {
                 status = CHAIN_RETURN_PACKET_ERROR;
             }
@@ -96,9 +96,9 @@ chain_status_t ChainAngle::getAngleClockwise(uint8_t id, uint8_t *direction, uns
 
         // 这里等待接收数据
         if (waitForData(id, CHAIN_ANGLE_GET_CLOCKWISE_STATUS, timeout)) {
-            if (checkPacket(reinterpret_cast<const uint8_t *>(cmdReturnBuffer), cmdReturnBufferSize)) {
+            if (checkPacket(reinterpret_cast<const uint8_t *>(returnPacket), returnPacketSize)) {
                 // 这里传参要返回的数据
-                *direction = cmdReturnBuffer[6];
+                *direction = returnPacket[6];
             } else {
                 status = CHAIN_RETURN_PACKET_ERROR;
             }
@@ -114,5 +114,5 @@ chain_status_t ChainAngle::getAngleClockwise(uint8_t id, uint8_t *direction, uns
 
 uint16_t ChainAngle::getAngleTypeCode(void)
 {
-    return CHAIN_ANGLE_TYPE_CODE;
+    return CHAIN_ANGLE_DEVICE_TYPE_CODE;
 }
