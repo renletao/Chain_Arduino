@@ -14,6 +14,8 @@
 #include "ChainKey.hpp"
 #include "ChainToF.hpp"
 #include "ChainUart.hpp"
+#include "ChainSwitch.hpp"
+#include "ChainPIR.hpp"
 
 class Chain : virtual public ChainCommon,
               virtual public ChainEncoder,
@@ -21,7 +23,9 @@ class Chain : virtual public ChainCommon,
               virtual public ChainJoystick,
               virtual public ChainKey,
               virtual public ChainToF,
-              virtual public ChainUart {
+              virtual public ChainUart,
+              virtual public ChainSwitch,  
+              virtual public ChainPIR  {
 public:
 private:
 };
