@@ -98,7 +98,7 @@ void setup()
                     delay(500);
                 }
 
-                chain_status = M5Chain.setPIRDetectTriggerMode(devices_list->devices[i].id, CHAIN_DETECT_NONE_REPORT_MODE, &operation_status);
+                chain_status = M5Chain.setPIRDetectTriggerMode(devices_list->devices[i].id, CHAIN_DETECT_REPORT_MODE, &operation_status);
                 if (chain_status == CHAIN_OK && operation_status) {
                     Serial.printf("ID[%d] set pir detect trigger mode success\r\n", devices_list->devices[i].id);
                 } else {

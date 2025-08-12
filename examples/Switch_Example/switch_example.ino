@@ -147,9 +147,10 @@ void loop()
                 uint8_t switch8Bit   = 0;
                 uint16_t switch_threshold_open = 0;
                 uint16_t switch_threshold_close = 0;
+
                 switch_direction_t switch_slip_direction;
                 chain_slip_mode_t switch_slip_report_mode;
-                switch_trigger_type_t swwitch_trig_type;
+                switch_report_type_t swwitch_trig_type;
                 chain_status = M5Chain.getSwitch12BitAdc(devices_list->devices[i].id, &switch12Bit);
                 if (chain_status == CHAIN_OK) {
                     Serial.printf("Switch ID[%d] switch12Bit:%d \r\n", devices_list->devices[i].id, switch12Bit);
@@ -180,6 +181,14 @@ void loop()
                     Serial.printf("Switch ID[%d] get slip direction failed, chain_status:%d \r\n",
                                   devices_list->devices[i].id, chain_status);
                 }
+                chain_status = M5Chain.getSwitchStatus(devices_list->devices[i].id, &switch_threshold_open, &switch_threshold_close);
+                if (chain_status == CHAIN_OK) {
+                    Serial.printf("Switch ID[%d] switch_slip threshold: open_threshold:%d , close_threshold:%d \r\n", devices_list->devices[i].id,
+                                  switch_threshold_open, switch_threshold_close);
+                } else {
+                    Serial.printf("Switch ID[%d] get slip direction failed, chain_status:%d \r\n",
+                                  devices_list->devices[i].id, chain_status);
+                }
                 chain_status = M5Chain.getSwitchAutoTriggerMode(devices_list->devices[i].id, &switch_slip_report_mode);
                 if (chain_status == CHAIN_OK) {
                     Serial.printf("Switch ID[%d] switch_slip report mode:%d \r\n", devices_list->devices[i].id, switch_slip_report_mode);
@@ -188,7 +197,7 @@ void loop()
                                   devices_list->devices[i].id, chain_status);
                 }
 
-                while (M5Chain.getSwitchTriggerStatus(devices_list->devices[i].id, &swwitch_trig_type)) {
+                while (M5Chain.getSwitchTriggerResult(devices_list->devices[i].id, &swwitch_trig_type)) {
                     switch (swwitch_trig_type) {
                         case CHAIN_SWITCH_CLOSE:
                             Serial.printf("ENCODER ID[%d] slip status is: close \r\n", devices_list->devices[i].id);

@@ -20,15 +20,19 @@
  * is increasing or decreasing.
  */
 typedef enum {
-    CHAIN_SWITCH_DOWNUP_DEC = 0x00, /**< Status indicating the down-to-up direction is decreasing. */
-    CHAIN_SWITCH_DOWNUP_INC = 0x01, /**< Status indicating the down-to-up direction is increasing. */
-} switch_direction_t;                  /**< Enumeration for recording the slip's direction of the switch device. */
-
+    CHAIN_SWITCH_DOWNUP_DEC = 0x00,     /**< Status indicating the down-to-up direction is decreasing. */
+    CHAIN_SWITCH_DOWNUP_INC = 0x01,     /**< Status indicating the down-to-up direction is increasing. */
+} switch_direction_t;               /**< Enumeration for recording the slip's direction of the switch device. */
 
 typedef enum {
-    CHAIN_SWITCH_CLOSE = 0x0400, /**< Status indicating the current slip state is closed. */
-    CHAIN_SWITCH_OPEN = 0x0401, /**< Status indicating the current slip state is open. */
-} switch_trigger_type_t;                  /**< Enumeration for recording the slip's current status of the switch device. */
+    CHAIN_SWITCH_CLOSE = 0x0400,        /**< Status indicating the current slip state is closed. */
+    CHAIN_SWITCH_OPEN = 0x0401,         /**< Status indicating the current slip state is open. */
+} switch_status_type_t;            /**< Enumeration for recording the slip's current status of the switch device. */
+
+typedef enum {
+    CHAIN_SWITCH_REPORT_CLOSE = 0x0400,    /**< Status indicating the current slip state is closed. */
+    CHAIN_SWITCH_REPORT_OPEN = 0x0401,     /**< Status indicating the current slip state is open. */
+} switch_report_type_t;            /**< Enumeration for recording the slip's current status of the switch device at Report Mode. */
 
 /**
  * @brief Enumeration for CHAIN_SWITCH device commands.
@@ -160,9 +164,32 @@ public:
      */
     chain_status_t getSwitchStatus(uint8_t id, uint8_t *switch_status, unsigned long timeout = 100);
 
-
+     /**
+     * @brief Sets the auto-trigger mode for the Switch device at the specified position in the chain.
+     *
+     * This function sets the auto-trigger mode for the Switch device. The mode can either be 'CHAIN_SLIP_NONE_REPORT_MODE'
+     * or 'CHAIN_SLIP_REPORT_MODE'.
+     *
+     * @param id The position of the Switch device in the chain (starting from 1).
+     * @param auto_status The desired trigger mode (CHAIN_SLIP_REPORT_MODE or CHAIN_SLIP_NONE_REPORT_MODE).
+     * @param operationStatus Pointer to store the operation status.
+     * @param timeout The timeout duration for the operation in milliseconds (default is 100ms).
+     *
+     * @return Operation status (e.g., CHAIN_OK, CHAIN_BUSY, etc.).
+     */
     chain_status_t setSwitchAutoTriggerMode(uint8_t id, chain_slip_mode_t auto_status, uint8_t* operationStatus, unsigned long timeout = 100);
 
+    /**
+     * @brief Gets the auto-trigger mode for the Switch device at the specified position in the chain.
+     *
+     * This function retrieves the current auto-trigger mode of the Switch device.
+     *
+     * @param id The position of the Switch device in the chain (starting from 1).
+     * @param auto_status Pointer to store the current trigger mode (CHAIN_SLIP_REPORT_MODE or CHAIN_SLIP_NONE_REPORT_MODE).
+     * @param timeout The timeout duration for the operation in milliseconds (default is 100ms).
+     *
+     * @return Operation status (e.g., CHAIN_OK, CHAIN_BUSY, etc.).
+     */
     chain_status_t getSwitchAutoTriggerMode(uint8_t id, chain_slip_mode_t* auto_status, unsigned long timeout = 100);
 
     /**
@@ -175,13 +202,13 @@ public:
     uint16_t getSwitchTypeCode(void);
 
     /**
-     * @brief Gets the trigger status of the Switch device at the specified position in the chain.
+     * @brief Gets the triggering report result of the Switch device at the specified position in the chain.
      * 
      * @param id The ID of the Switch device in the chain.
      * 
-     * @param triggerStatus Pointer to store the trigger status (1 for open_triggered, 0 for close_triggered).
+     * @param triggerStatus Pointer to store the trigger status (1 for open_trigger, 0 for close_trigger).
      */
-    bool getSwitchTriggerStatus(uint8_t id, switch_trigger_type_t *triggerStatus);
+    bool getSwitchTriggerResult(uint8_t id, switch_report_type_t *triggerStatus);
 
 private:
 };
