@@ -269,7 +269,7 @@ uint16_t ChainSwitch::getSwitchTypeCode(void)
     return CHAIN_SWITCH_DEVICE_TYPE_CODE;
 }
 
-bool ChainSwitch::getSwitchTriggerResult(uint8_t id, switch_report_type_t *triggerStatus)
+bool ChainSwitch::getSwitchTrigger(uint8_t id, switch_report_type_t *triggerStatus)
 {
     processIncomingData();
     bool findStatus = 0;

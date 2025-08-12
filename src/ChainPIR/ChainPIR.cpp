@@ -86,7 +86,7 @@ uint16_t ChainPIR::getPIRTypeCode(void)
     return CHAIN_PIR_DEVICE_TYPE_CODE;
 }
 
-bool ChainPIR::getPIRdetectReport(uint8_t id, pir_detect_report_t *triggerStatus)
+bool ChainPIR::getPIRDetectTrigger(uint8_t id, pir_detect_report_t *triggerStatus)
 {
     processIncomingData();
     bool findStatus = 0;

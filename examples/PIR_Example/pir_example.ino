@@ -134,7 +134,7 @@ void loop()
                 } else {
                     Serial.printf("PIR ID[%d] get ir status failed, chain_status:%d \r\n", devices_list->devices[i].id, chain_status);
                 }
-                while (M5Chain.getPIRdetectReport(devices_list->devices[i].id, &pir_detect_report_res)) {
+                while (M5Chain.getPIRDetectTrigger(devices_list->devices[i].id, &pir_detect_report_res)) {
                     switch (pir_detect_report_res) {
                         case CHAIN_PIR_REPORT_NO_PERSON:
                             Serial.printf("ENCODER ID[%d] detect result is: non person \r\n", devices_list->devices[i].id);

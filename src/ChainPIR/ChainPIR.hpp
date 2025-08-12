@@ -102,7 +102,7 @@ public:
      *
      * @return Returns true if the operation was successful, otherwise returns false.
      */
-    bool getPIRdetectReport(uint8_t id, pir_detect_report_t *triggerStatus);
+    bool getPIRDetectTrigger(uint8_t id, pir_detect_report_t *triggerStatus);
 
 private:
 };

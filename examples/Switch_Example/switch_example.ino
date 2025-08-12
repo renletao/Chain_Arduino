@@ -197,7 +197,7 @@ void loop()
                                   devices_list->devices[i].id, chain_status);
                 }
 
-                while (M5Chain.getSwitchTriggerResult(devices_list->devices[i].id, &swwitch_trig_type)) {
+                while (M5Chain.getSwitchTrigger(devices_list->devices[i].id, &swwitch_trig_type)) {
                     switch (swwitch_trig_type) {
                         case CHAIN_SWITCH_CLOSE:
                             Serial.printf("ENCODER ID[%d] slip status is: close \r\n", devices_list->devices[i].id);

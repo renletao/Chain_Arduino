@@ -208,7 +208,7 @@ public:
      * 
      * @param triggerStatus Pointer to store the trigger status (1 for open_trigger, 0 for close_trigger).
      */
-    bool getSwitchTriggerResult(uint8_t id, switch_report_type_t *triggerStatus);
+    bool getSwitchTrigger(uint8_t id, switch_report_type_t *triggerStatus);
 
 private:
 };
