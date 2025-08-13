@@ -180,7 +180,7 @@ chain_status_t ChainSwitch::getSwitchThresholdValue(uint8_t id, uint16_t* open_t
     return status;
 }
 
-chain_status_t ChainSwitch::getSwitchStatus(uint8_t id, uint8_t *switch_status, unsigned long timeout)
+chain_status_t ChainSwitch::getSwitchStatus(uint8_t id, switch_status_type_t *switch_status, unsigned long timeout)
 {
     // 指令处理模板
     chain_status_t status = CHAIN_OK;

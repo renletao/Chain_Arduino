@@ -149,6 +149,7 @@ void loop()
                 uint16_t switch_threshold_close = 0;
 
                 switch_direction_t switch_slip_direction;
+                switch_status_type_t switch_status;
                 chain_slip_mode_t switch_slip_report_mode;
                 switch_report_type_t swwitch_trig_type;
                 chain_status = M5Chain.getSwitch12BitAdc(devices_list->devices[i].id, &switch12Bit);
@@ -181,10 +182,9 @@ void loop()
                     Serial.printf("Switch ID[%d] get slip direction failed, chain_status:%d \r\n",
                                   devices_list->devices[i].id, chain_status);
                 }
-                chain_status = M5Chain.getSwitchStatus(devices_list->devices[i].id, &switch_threshold_open, &switch_threshold_close);
+                chain_status = M5Chain.getSwitchStatus(devices_list->devices[i].id, &switch_status);
                 if (chain_status == CHAIN_OK) {
-                    Serial.printf("Switch ID[%d] switch_slip threshold: open_threshold:%d , close_threshold:%d \r\n", devices_list->devices[i].id,
-                                  switch_threshold_open, switch_threshold_close);
+                    Serial.printf("Switch ID[%d] switch status: %d \r\n", devices_list->devices[i].id, switch_status);
                 } else {
                     Serial.printf("Switch ID[%d] get slip direction failed, chain_status:%d \r\n",
                                   devices_list->devices[i].id, chain_status);

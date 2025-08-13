@@ -157,12 +157,12 @@ public:
      * rotation direction is increasing or decreasing in the down-to-up direction.
      *
      * @param id The position of the Switch device in the chain (starting from 1).
-     * @param status Pointer to store the current slip's switch status. (1 for open, 0 for close).
+     * @param switch_status Pointer to store the current slip's switch status. (1 for open, 0 for close).
      * @param timeout The timeout duration for the operation in milliseconds (default is 100ms).
      *
      * @return The operation status (e.g., `CHAIN_OK`, `CHAIN_TIMEOUT`, etc.).
      */
-    chain_status_t getSwitchStatus(uint8_t id, uint8_t *switch_status, unsigned long timeout = 100);
+    chain_status_t getSwitchStatus(uint8_t id, switch_status_type_t *switch_status, unsigned long timeout = 100);
 
      /**
      * @brief Sets the auto-trigger mode for the Switch device at the specified position in the chain.
