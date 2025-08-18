@@ -9,11 +9,6 @@
 
 #include <ChainCommon.hpp>
 
-/**
- * @brief CHAIN_PIIR device type code.
- */
-#define CHAIN_PIR_DEVICE_TYPE_CODE (0x0009)
-
 typedef enum {
     CHAIN_PIR_NO_PERSON = 0x00, /**< Status indicating the PIR is not detecting any person. */
     CHAIN_PIR_PERSON = 0x01,    /**< Status indicating the PIR is detecting a person. */

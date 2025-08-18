@@ -8,10 +8,6 @@
 #define _CHAIN_SWITCH_HPP_
 
 #include <ChainCommon.hpp>
-/**
- * @brief CHAIN_SWITCH device type code.
- */
-#define CHAIN_SWITCH_DEVICE_TYPE_CODE (0x0007)
 
 /**
  * @brief Slip direction for Switch device.
