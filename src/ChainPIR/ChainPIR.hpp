@@ -25,6 +25,13 @@ typedef enum {
     CHAIN_PIR_REPORT_PERSON = 0x0301,    /**< Status indicating the PIR is detecting a person. */
 } pir_detect_report_t;          /**< Enumeration for recording the PIR's current detect result of the pir device at Report Mode. */
 
+/**
+ * @brief Chain PIR detect mode enumeration.
+ */
+typedef enum {
+    CHAIN_DETECT_NONE_REPORT_MODE = 0x00, /**< None report mode. */
+    CHAIN_DETECT_REPORT_MODE      = 0x01, /**< Report mode. */
+} chain_detect_mode_t;
 
 /**
  * @brief Enumeration for CHAIN_SWITCH device commands.
@@ -82,15 +89,6 @@ public:
      * @return Operation status (e.g., CHAIN_OK, CHAIN_BUSY, etc.).
      */
     chain_status_t getPIRDetectTriggerMode(uint8_t id, chain_detect_mode_t* auto_status, unsigned long timeout = 100);
-
-    /**
-     * @brief Gets the Chain_Switch type code.
-     *
-     * This function returns the type code for the Chain_Switch device, used to identify the device type.
-     *
-     * @return Returns the Chain_Switch device type code.
-     */
-    uint16_t getPIRTypeCode(void);
 
     /**
      * @brief Gets the PIR detect report status.

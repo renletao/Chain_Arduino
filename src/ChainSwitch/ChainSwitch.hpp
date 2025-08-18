@@ -35,6 +35,14 @@ typedef enum {
 } switch_report_type_t;            /**< Enumeration for recording the slip's current status of the switch device at Report Mode. */
 
 /**
+ * @brief Chain switch slip mode enumeration.
+ */
+typedef enum {
+    CHAIN_SLIP_NONE_REPORT_MODE = 0x00, /**< None report mode. */
+    CHAIN_SLIP_REPORT_MODE      = 0x01, /**< Report mode. */
+} chain_slip_mode_t;
+
+/**
  * @brief Enumeration for CHAIN_SWITCH device commands.
  *
  * This enumeration defines command codes for various operations of the CHAIN_SWITCH device.
@@ -191,15 +199,6 @@ public:
      * @return Operation status (e.g., CHAIN_OK, CHAIN_BUSY, etc.).
      */
     chain_status_t getSwitchAutoTriggerMode(uint8_t id, chain_slip_mode_t* auto_status, unsigned long timeout = 100);
-
-    /**
-     * @brief Gets the Chain_Switch type code.
-     *
-     * This function returns the type code for the Chain_Switch device, used to identify the device type.
-     *
-     * @return Returns the Chain_Switch device type code.
-     */
-    uint16_t getSwitchTypeCode(void);
 
     /**
      * @brief Gets the triggering report result of the Switch device at the specified position in the chain.

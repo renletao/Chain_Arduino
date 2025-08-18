@@ -164,23 +164,6 @@ typedef enum {
 } chain_button_mode_t;
 
 /**
- * @brief Chain switch slip mode enumeration.
- */
-typedef enum {
-    CHAIN_SLIP_NONE_REPORT_MODE = 0x00, /**< None report mode. */
-    CHAIN_SLIP_REPORT_MODE      = 0x01, /**< Report mode. */
-} chain_slip_mode_t;
-
-/**
- * @brief Chain PIR detect mode enumeration.
- */
-typedef enum {
-    CHAIN_DETECT_NONE_REPORT_MODE = 0x00, /**< None report mode. */
-    CHAIN_DETECT_REPORT_MODE      = 0x01, /**< Report mode. */
-} chain_detect_mode_t;
-
-
-/**
  * @brief Chain device type enumeration.
  */
 typedef enum {
